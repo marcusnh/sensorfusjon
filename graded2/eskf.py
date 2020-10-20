@@ -182,14 +182,14 @@ class ESKF:
         # Allocate the matrix
         A = np.zeros((15, 15))
 
-        # Set submatrices
-        A[POS_IDX * VEL_IDX] = np.zeros((3,))
-        A[VEL_IDX * ERR_ATT_IDX] = np.zeros((3,))
-        A[VEL_IDX * ERR_ACC_BIAS_IDX] = np.zeros((3,))
-        A[ERR_ATT_IDX * ERR_ATT_IDX] = np.zeros((3,))
-        A[ERR_ATT_IDX * ERR_GYRO_BIAS_IDX] = np.zeros((3,))
-        A[ERR_ACC_BIAS_IDX * ERR_ACC_BIAS_IDX] = np.zeros((3,))
-        A[ERR_GYRO_BIAS_IDX * ERR_GYRO_BIAS_IDX] = np.zeros((3,))
+        # Set submatrices  # TODO
+        A[POS_IDX * VEL_IDX] = np.identity(3)
+        A[VEL_IDX * ERR_ATT_IDX] = -R
+        A[VEL_IDX * ERR_ACC_BIAS_IDX] = -R
+        A[ERR_ATT_IDX * ERR_ATT_IDX] = -np.identity(3)
+        A[ERR_ATT_IDX * ERR_GYRO_BIAS_IDX] = -np.identity(3)
+        A[ERR_ACC_BIAS_IDX * ERR_ACC_BIAS_IDX] = -self.p_acc*np.identity(3)
+        A[ERR_GYRO_BIAS_IDX * ERR_GYRO_BIAS_IDX] = -self.p_gyro*np.identity(3)
 
         # Bias correction
         A[VEL_IDX * ERR_ACC_BIAS_IDX] = A[VEL_IDX * ERR_ACC_BIAS_IDX] @ self.S_a
@@ -222,7 +222,11 @@ class ESKF:
 
         R = quaternion_to_rotation_matrix(x_nominal[ATT_IDX], debug=self.debug)
 
-        G = np.zeros((15, 12))
+        # TODO
+        block_matrix = la.block_diag(-R, -np.identity(3), np.identity(3), np.identity(3))
+
+        G = np.vstack(np.zeros((3, 12), block_matrix))
+
 
         assert G.shape == (15, 12), f"ESKF.Gerr: G-matrix shape incorrect {G.shape}"
         return G
@@ -264,15 +268,21 @@ class ESKF:
         A = self.Aerr(x_nominal, acceleration, omega)
         G = self.Gerr(x_nominal)
 
-        V = np.zeros((30, 30))
+        # Setter sammen de to øverste og nederste matrisene før de settes sammen til V
+        top_matrix = np.hstack(-A, G@self.Q_err@G.T)  # Tror det er Q_err som skal brukes her, ikke sikker
+        bottom_matrix = np.hstack(np.zeros(15, 15), A.T)
+
+        V = np.vstack(top_matrix, bottom_matrix)*Ts  # TODO
+
         assert V.shape == (
             30,
             30,
         ), f"ESKF.discrete_error_matrices: Van Loan matrix shape incorrect {omega.shape}"
         VanLoanMatrix = la.expm(V)  # This can be slow...
 
-        Ad = np.zeros((15, 15))
-        GQGd = np.zeros((15, 15))
+        # Rimelig sikker d betyr diskret
+        Ad = np.zeros((15, 15))  # Denne vet jeg ikke TODO: Finne ut hva denne er
+        GQGd = VanLoanMatrix[15:, 15:].T @ VanLoanMatrix[:15, 15:]  # Se teorem 4.5.2. GQGd = Q i teoremet
 
         assert Ad.shape == (
             15,
@@ -376,13 +386,13 @@ class ESKF:
         acc_bias = self.S_a @ x_nominal[ACC_BIAS_IDX]
         gyro_bias = self.S_g @ x_nominal[GYRO_BIAS_IDX]
 
-        # debias IMU measurements
-        acceleration = np.zeros((3,))
-        omega = np.zeros((3,))
+        # TODO: debias IMU measurements. Tror dette er riktig, men kan være verdt en sjekk
+        acceleration = r_z_acc - acc_bias
+        omega = r_z_gyro - gyro_bias
 
-        # perform prediction
-        x_nominal_predicted = np.zeros((16,))
-        P_predicted = np.zeros((15, 15))
+        # TODO: perform prediction.     Tror disse skal være good
+        x_nominal_predicted = self.predict_nominal(x_nominal, acceleration, omega, Ts)
+        P_predicted = self.predict_covariance(x_nominal, P, acceleration, omega, Ts)
 
         assert x_nominal_predicted.shape == (
             16,
@@ -431,6 +441,10 @@ class ESKF:
         # TODO: Inject error state into nominal state (except attitude / quaternion)
         # TODO: Inject attitude
         # TODO: Normalize quaternion
+
+        # Prøver meg her
+        x_injected = quaternion_product(x_nominal[INJ_IDX], delta_x[INJ_IDX])
+
 
         # Covariance
         G_injected = np.zeros((1,))  # TODO: Compensate for injection in the covariances
