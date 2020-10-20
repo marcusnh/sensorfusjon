@@ -114,22 +114,27 @@ class ESKF:
 
         R = quaternion_to_rotation_matrix(quaternion, debug=self.debug)
 
-        position_prediction = np.zeros((3,))  # TODO: Calculate predicted position
-        velocity_prediction = np.zeros((3,))  # TODO: Calculate predicted velocity
+        position_prediction = position + Ts*velocity + 0.5*Ts**2  # TODO: Calculate predicted position
+        velocity_prediction = velocity + Ts*acceleration  # TODO: Calculate predicted velocity
 
-        quaternion_prediction = np.array(
-            [1, 0, 0, 0]
-        )  # TODO: Calculate predicted quaternion
+        kappa = Ts*omega
+        kappa_norm = np.sqrt(np.sum(kappa**2))
+
+        vector_1 = np.ndarray(1)
+        vector_1[0] = np.cos(kappa_norm)/2
+
+        vector_2 = np.sin(kappa_norm/2)*kappa/kappa_norm
+        vector = np.concatenate((vector_1, vector_2), axis=0)
+
+        quaternion_prediction = quaternion_product(quaternion, vector)  # TODO: Calculate predicted quaternion
+
 
         # Normalize quaternion
-        quaternion_prediction = quaternion_prediction  # TODO: Normalize
+        quaternion_prediction = np.sqrt(np.sum(quaternion_prediction**2))  # TODO: Normalize
 
-        acceleration_bias_prediction = np.zeros(
-            (3,)
-        )  # TODO: Calculate predicted acceleration bias
-        gyroscope_bias_prediction = np.zeros(
-            (3,)
-        )  # TODO: Calculate predicted gyroscope bias
+        acceleration_bias_prediction = -self.p_acc*np.identity(3)@acceleration_bias  # TODO: Calculate predicted acceleration bias
+
+        gyroscope_bias_prediction = -self.p_gyro*np.identity(3)@gyroscope_bias  # TODO: Calculate predicted gyroscope bias
 
         x_nominal_predicted = np.concatenate(
             (
