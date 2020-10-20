@@ -124,7 +124,7 @@ class ESKF:
         vector_1[0] = np.cos(kappa_norm)/2
 
         vector_2 = np.sin(kappa_norm/2)*kappa/kappa_norm
-        vector = np.concatenate((vector_1, vector_2), axis=0)
+        vector = np.concatenate((vector_1, vector_2), axis=0) #4x1 matrix
 
         quaternion_prediction = quaternion_product(quaternion, vector)  # TODO: Calculate predicted quaternion
 
