@@ -117,7 +117,7 @@ class ESKF:
         position_prediction = position + Ts*velocity + 0.5*Ts**2  # TODO: Calculate predicted position
         velocity_prediction = velocity + Ts*acceleration  # TODO: Calculate predicted velocity
 
-        kappa = Ts*omega
+        kappa = Ts*omega # er dette rett?
         kappa_norm = np.sqrt(np.sum(kappa**2))
 
         vector_1 = np.ndarray(1)
@@ -145,7 +145,7 @@ class ESKF:
                 gyroscope_bias_prediction,
             )
         )
-
+        # feil her? nevnte noe i forelesningen
         assert x_nominal_predicted.shape == (
             16,
         ), f"ESKF.predict_nominal: x_nominal_predicted shape incorrect {x_nominal_predicted.shape}"
@@ -281,8 +281,8 @@ class ESKF:
         VanLoanMatrix = la.expm(V)  # This can be slow...
 
         # Rimelig sikker d betyr diskret
-        Ad = np.zeros((15, 15))  # Denne vet jeg ikke TODO: Finne ut hva denne er
-        GQGd = VanLoanMatrix[15:, 15:].T @ VanLoanMatrix[:15, 15:]  # Se teorem 4.5.2. GQGd = Q i teoremet
+        Ad = (VanLoanMatrix[15:,15:]).T  # V1 i teoremet TODO:
+        GQGd = Ad @ VanLoanMatrix[:15, 15:]  # Se teorem 4.5.2. GQGd = Q i teoremet
 
         assert Ad.shape == (
             15,
@@ -335,7 +335,7 @@ class ESKF:
 
         Ad, GQGd = self.discrete_error_matrices(x_nominal, acceleration, omega, Ts)
 
-        P_predicted = np.zeros((15, 15))
+        P_predicted =  Ad@P@Ad.T+GQGd    #GQGd@P@GQGd.T #TODO
 
         assert P_predicted.shape == (
             15,
@@ -437,20 +437,23 @@ class ESKF:
         # All error indices, minus the attitude
         DTX_IDX = POS_IDX + VEL_IDX + ERR_ACC_BIAS_IDX + ERR_GYRO_BIAS_IDX
 
+
+        # TODO: Inject error state into nominal state (except attitude / quaternion):
         x_injected = x_nominal.copy()
-        # TODO: Inject error state into nominal state (except attitude / quaternion)
-        # TODO: Inject attitude
-        # TODO: Normalize quaternion
+        x_injected += delta_x[DTX_IDX]
 
-        # Prøver meg her
-        x_injected = quaternion_product(x_nominal[INJ_IDX], delta_x[INJ_IDX])
-
+        # TODO: Inject attitude:
+        dx_quat = euler_to_quaternion(delta_x[ERR_ATT_IDX])
+        x_injected[ATT_IDX] = quaternion_product(x_nominal[ATT_IDX], dx_quat)
+        # TODO: Normalize quaternion:
+        x_injected[ATT_IDX] /= la.norm(x_injected[ATT_IDX])
 
         # Covariance
-        G_injected = np.zeros((1,))  # TODO: Compensate for injection in the covariances
+        G_injected = la.block_diag(np.eye(6), np.eye(3)-cross_product_matrix(0.5*delta_x[DTX_IDX]),np.eye(6)) #np.zeros((1,))  # TODO: Compensate for injection in the covariances
         P_injected = np.zeros(
             (15, 15)
-        )  # TODO: Compensate for injection in the covariances
+        )
+        P_injected = G_injected@P@G_injected.T# TODO: Compensate for injection in the covariances
 
         assert x_injected.shape == (
             16,

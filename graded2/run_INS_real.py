@@ -122,16 +122,16 @@ rate_std = cont_gyro_noise_std*np.sqrt(1/dt)
 acc_std  = cont_acc_noise_std*np.sqrt(1/dt)
 
 # Bias values
-rate_bias_driving_noise_std = # TODO
+rate_bias_driving_noise_std = # TODO Angular Random Walk, gjør om til riktig format
 cont_rate_bias_driving_noise_std = rate_bias_driving_noise_std/np.sqrt(1/dt)
 
 acc_bias_driving_noise_std = # TODO
 cont_acc_bias_driving_noise_std = acc_bias_driving_noise_std/np.sqrt(1/dt)
 
 # Position and velocity measurement
-p_acc = # TODO
+p_acc = # TODO # Bias Instability
 
-p_gyro = # TODO
+p_gyro = # TODO # Bias Instability
 
 # %% Estimator
 eskf = ESKF(
