@@ -113,8 +113,8 @@ class ESKF:
             ), "ESKF.predict_nominal: Quaternion not normalized and norm failed to catch it."
 
         R = quaternion_to_rotation_matrix(quaternion, debug=self.debug)
-
-        position_prediction = position + Ts*velocity + 0.5*Ts**2  # TODO: Calculate predicted position
+        acceleration = R@acceleration
+        position_prediction = position + Ts*velocity + 0.5*Ts**2*acceleration  # TODO: Calculate predicted position
         velocity_prediction = velocity + Ts*acceleration  # TODO: Calculate predicted velocity
 
         kappa = Ts*omega # er dette rett?
@@ -506,10 +506,21 @@ class ESKF:
         assert lever_arm.shape == (
             3,
         ), f"ESKF.innovation_GNSS: lever_arm shape incorrect {lever_arm.shape}"
+        # TODO: measurement matrix
 
-        H = np.zeros((1,))  # TODO: measurement matrix
-
-        v = np.zeros((3,))  # TODO: innovation
+        Hx = [np.eye(3), np.zeros(3, 13)]
+        eta = x_nominal[]
+        eps1 = x_nominal[]
+        eps2 = x_nominal[]
+        eps3 = x_nominal[]
+        Q_theta = 0.5 *np.array([[-eps1,-eps2,-eps3],
+                                 [eta,-eps3,eps2],
+                                 [eps3,eta,-eps1],
+                                 [-eps2,eps1,eta]])
+        xt = la.block_diag(np.eye(6),Q_theta,np.eye(6))
+        H = Hx@xt
+        # TODO: innovation
+        v = z_GNSS-H_x@x_nominal #got from KF
 
         # leverarm compensation
         if not np.allclose(lever_arm, 0):
@@ -517,7 +528,7 @@ class ESKF:
             H[:, ERR_ATT_IDX] = -R @ cross_product_matrix(lever_arm, debug=self.debug)
             v -= R @ lever_arm
 
-        S = np.zeros((3, 3))  # TODO: innovation covariance
+        S = H@P@H.T +R_GNSS  # TODO: innovation covariance
 
         assert v.shape == (3,), f"ESKF.innovation_GNSS: v shape incorrect {v.shape}"
         assert S.shape == (3, 3), f"ESKF.innovation_GNSS: S shape incorrect {S.shape}"
