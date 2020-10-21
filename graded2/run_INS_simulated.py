@@ -188,11 +188,11 @@ N: int = 500 # TODO: choose a small value to begin with (500?), and gradually in
 doGNSS: bool = True  # TODO: Set this to False if you want to check that the predictions make sense over reasonable time lenghts
 
 GNSSk: int = 0  # keep track of current step in GNSS measurements
-for k in tqdm.trange(N):
+for k in tqdm(range(N)):
     if doGNSS and timeIMU[k] >= timeGNSS[GNSSk]:
         NIS[GNSSk] = eskf.NIS_GNSS_position(x_pred[k, :], P_pred[k, :, :], z_GNSS[GNSSk, :], R_GNSS)  # TODO:
 
-        x_est[k], P_est[k] = eskf.update_GNSS_position(x_pred, P_pred[k, :, :], z_GNSS[GNSSk,:], R_GNSS, lever_arm)  # TODO:
+        x_est[k], P_est[k] = eskf.update_GNSS_position(x_pred[k, :], P_pred[k, :, :], z_GNSS[GNSSk, :], R_GNSS, lever_arm)  # TODO:
         assert np.all(np.isfinite(P_est[k])), f"Not finite P_pred at index {k}"
 
         GNSSk += 1
@@ -209,7 +209,7 @@ for k in tqdm.trange(N):
         NEES_att[k],
         NEES_accbias[k],
         NEES_gyrobias[k],
-    ) = eskf.NEESes(x_est[k, :], P_est[k, :, :], x_true[k, :, :])  # TODO: The true error state at step k
+    ) = eskf.NEESes(x_est[k, :], P_est[k, :, :], x_true[k, :])  # TODO: The true error state at step k
 
     if k < N - 1:
         x_pred[k + 1], P_pred[k + 1] = eskf.predict(
@@ -426,5 +426,5 @@ axs6[2].boxplot([NEES_pos[0:N].T, NEES_vel[0:N].T, NEES_att[0:N].T, NEES_accbias
 axs6[2].legend(['NEES pos', 'NEES vel', 'NEES att', 'NEES accbias', 'NEES gyrobias', 'gauss (3 dim)'])
 plt.grid()
 
-
+plt.show()
 # %%
