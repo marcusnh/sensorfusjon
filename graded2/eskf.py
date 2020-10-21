@@ -509,10 +509,10 @@ class ESKF:
         # TODO: measurement matrix
 
         Hx = [np.eye(3), np.zeros(3, 13)]
-        eta = x_nominal[]
-        eps1 = x_nominal[]
-        eps2 = x_nominal[]
-        eps3 = x_nominal[]
+        eta = x_nominal[6]
+        eps1 = x_nominal[7]
+        eps2 = x_nominal[8]
+        eps3 = x_nominal[9]
         Q_theta = 0.5 *np.array([[-eps1,-eps2,-eps3],
                                  [eta,-eps3,eps2],
                                  [eps3,eta,-eps1],
