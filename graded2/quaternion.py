@@ -43,7 +43,7 @@ def quaternion_product(ql: np.ndarray, qr: np.ndarray) -> np.ndarray:
     im = eta_right*epsilon_left + eta_left*epsilon_right + utils.cross_product_matrix(epsilon_left) @ epsilon_right
 
     quaternion = np.vstack((re[0], im))  # TODO: Implement quaternion product
-
+    print((re[0], im))
     # Ensure result is of correct shape
     quaternion = quaternion.ravel()
     assert quaternion.shape == (

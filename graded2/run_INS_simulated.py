@@ -102,7 +102,6 @@ z_acceleration = loaded_data["zAcc"].T
 z_GNSS = loaded_data["zGNSS"].T
 z_gyroscope = loaded_data["zGyro"].T
 
-print(z_GNSS)
 dt = np.mean(np.diff(timeIMU))
 steps = len(z_acceleration)
 gnss_steps = len(z_GNSS)
@@ -111,15 +110,17 @@ gnss_steps = len(z_GNSS)
 # IMU noise values for STIM300, based on datasheet and simulation sample rate
 # Continous noise
 # TODO: What to remove here?
+#white noise: should be much bigger than the bias (1000?)
 cont_gyro_noise_std = 4.36e-5  # (rad/s)/sqrt(Hz)
 cont_acc_noise_std = 1.167e-3  # (m/s**2)/sqrt(Hz)
+
 
 # Discrete sample noise at simulation rate used
 rate_std = 0.5 * cont_gyro_noise_std * np.sqrt(1 / dt)
 acc_std = 0.5 * cont_acc_noise_std * np.sqrt(1 / dt)
 
 # Bias values
-rate_bias_driving_noise_std = 5e-5
+rate_bias_driving_noise_std = 5e-5 #(1e-6)**2
 cont_rate_bias_driving_noise_std = (
     (1 / 3) * rate_bias_driving_noise_std / np.sqrt(1 / dt)
 )
@@ -172,11 +173,11 @@ x_pred[0, VEL_IDX] = np.array([20, 0, 0])  # starting at 20 m/s due north
 x_pred[0, 6] = 1  # no initial rotation: nose to North, right to East, and belly down
 
 # These have to be set reasonably to get good results
-P_pred[0][POS_IDX ** 2] = np.eye(3)# TODO
-P_pred[0][VEL_IDX ** 2] = np.eye(3)# TODO
-P_pred[0][ERR_ATT_IDX ** 2] = np.eye(3)# TODO # error rotation vector (not quat)
-P_pred[0][ERR_ACC_BIAS_IDX ** 2] = np.eye(3)# TODO
-P_pred[0][ERR_GYRO_BIAS_IDX ** 2] = np.eye(3)# TODO
+P_pred[0][POS_IDX ** 2] = np.eye(3)*(1e-3)# TODO
+P_pred[0][VEL_IDX ** 2] = np.eye(3)*(1e-3)# TODO
+P_pred[0][ERR_ATT_IDX ** 2] = np.eye(3)*(1e-5)# TODO # error rotation vector (not quat)
+P_pred[0][ERR_ACC_BIAS_IDX ** 2] = np.eye(3)*(1e-2)# TODO
+P_pred[0][ERR_GYRO_BIAS_IDX ** 2] = np.eye(3)*(1e-4)# TODO
 
 # %% Test: you can run this cell to test your implementation
 dummy = eskf.predict(x_pred[0], P_pred[0], z_acceleration[0], z_gyroscope[0], dt)
@@ -184,7 +185,7 @@ dummy = eskf.update_GNSS_position(x_pred[0], P_pred[0], z_GNSS[0], R_GNSS, lever
 ## %% Run estimation
 # run this file with 'python -O run_INS_simulated.py' to turn of assertions and get about 8/5 speed increase for longer runs
 
-N: int = 500 # TODO: choose a small value to begin with (500?), and gradually increase as you OK results
+N: int = 10000 # TODO: choose a small value to begin with (500?), and gradually increase as you OK results
 doGNSS: bool = True  # TODO: Set this to False if you want to check that the predictions make sense over reasonable time lenghts
 
 GNSSk: int = 0  # keep track of current step in GNSS measurements
@@ -198,8 +199,8 @@ for k in tqdm(range(N)):
         GNSSk += 1
     else:
         # no updates, so let us take estimate = prediction
-        x_est[k] = x_pred[k, :]  # TODO
-        P_est[k] = P_pred[k, :, :]  # TODO
+        x_est[k] = x_pred[k]  # TODO
+        P_est[k] = P_pred[k]  # TODO
 
     delta_x[k] = eskf.delta_x(x_est[k], x_true[k])
     (
@@ -209,11 +210,13 @@ for k in tqdm(range(N)):
         NEES_att[k],
         NEES_accbias[k],
         NEES_gyrobias[k],
-    ) = eskf.NEESes(x_est[k, :], P_est[k, :, :], x_true[k, :])  # TODO: The true error state at step k
-
+    ) = eskf.NEESes(x_est[k], P_est[k], x_true[k])  # TODO: The true error state at step k
+    print(NEES_all[k])
+    print(NEES_pos[k])
+    print(NEES_vel[k])
     if k < N - 1:
         x_pred[k + 1], P_pred[k + 1] = eskf.predict(
-            x_est[k, :], P_est[k, :, :], z_acceleration[k+1, :], z_gyroscope[k+1, :], dt
+            x_est[k, :], P_est[k, :, :], z_acceleration[k, :], z_gyroscope[k, :], dt
         )  # TODO: Hint: measurements come from the the present and past, not the future
 
     if eskf.debug:
@@ -225,8 +228,9 @@ for k in tqdm(range(N)):
 fig1 = plt.figure(1)
 ax = plt.axes(projection="3d")
 
-ax.plot3D(x_est[:N, 1], x_est[:N, 0], -x_est[:N, 2])
-ax.plot3D(z_GNSS[:GNSSk, 1], z_GNSS[:GNSSk, 0], -z_GNSS[:GNSSk, 2])
+ax.plot3D(x_est[:N, 1], x_est[:N, 0], -x_est[:N, 2],label='Predicted')
+ax.plot3D(z_GNSS[:GNSSk, 1], z_GNSS[:GNSSk, 0], -z_GNSS[:GNSSk, 2],label='GNSS position')
+ax.legend()
 ax.set_xlabel("East [m]")
 ax.set_ylabel("North [m]")
 ax.set_zlabel("Altitude [m]")
@@ -358,7 +362,7 @@ insideCI = np.mean((CI15[0] <= NEES_all) * (NEES_all <= CI15[1]))
 axs5[0].set(
     title=f"Total NEES ({100 *  insideCI:.1f} inside {100 * confprob} confidence interval)"
 )
-axs5[0].set_ylim([0, 50])
+#axs5[0].set_ylim([0, 50])
 
 axs5[1].plot(t, (NEES_pos[0:N]).T)
 axs5[1].plot(np.array([0, N - 1]) * dt, (CI3 @ np.ones((1, 2))).T)
@@ -366,7 +370,7 @@ insideCI = np.mean((CI3[0] <= NEES_pos) * (NEES_pos <= CI3[1]))
 axs5[1].set(
     title=f"Position NEES ({100 *  insideCI:.1f} inside {100 * confprob} confidence interval)"
 )
-axs5[1].set_ylim([0, 20])
+#axs5[1].set_ylim([0, 20])
 
 axs5[2].plot(t, (NEES_vel[0:N]).T)
 axs5[2].plot(np.array([0, N - 1]) * dt, (CI3 @ np.ones((1, 2))).T)
