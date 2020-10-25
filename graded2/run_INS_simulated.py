@@ -185,7 +185,7 @@ dummy = eskf.update_GNSS_position(x_pred[0], P_pred[0], z_GNSS[0], R_GNSS, lever
 ## %% Run estimation
 # run this file with 'python -O run_INS_simulated.py' to turn of assertions and get about 8/5 speed increase for longer runs
 
-N: int = 10000 # TODO: choose a small value to begin with (500?), and gradually increase as you OK results
+N: int = 500 # TODO: choose a small value to begin with (500?), and gradually increase as you OK results
 doGNSS: bool = True  # TODO: Set this to False if you want to check that the predictions make sense over reasonable time lenghts
 
 GNSSk: int = 0  # keep track of current step in GNSS measurements
@@ -211,9 +211,6 @@ for k in tqdm(range(N)):
         NEES_accbias[k],
         NEES_gyrobias[k],
     ) = eskf.NEESes(x_est[k], P_est[k], x_true[k])  # TODO: The true error state at step k
-    print(NEES_all[k])
-    print(NEES_pos[k])
-    print(NEES_vel[k])
     if k < N - 1:
         x_pred[k + 1], P_pred[k + 1] = eskf.predict(
             x_est[k, :], P_est[k, :, :], z_acceleration[k, :], z_gyroscope[k, :], dt
@@ -234,6 +231,7 @@ ax.legend()
 ax.set_xlabel("East [m]")
 ax.set_ylabel("North [m]")
 ax.set_zlabel("Altitude [m]")
+fig1.savefig('Firgure1:3D projection:of_tracjeectory.png', dpi=300, bbox_inches='tight')
 
 
 # state estimation
@@ -430,5 +428,11 @@ axs6[2].boxplot([NEES_pos[0:N].T, NEES_vel[0:N].T, NEES_att[0:N].T, NEES_accbias
 axs6[2].legend(['NEES pos', 'NEES vel', 'NEES att', 'NEES accbias', 'NEES gyrobias', 'gauss (3 dim)'])
 plt.grid()
 
+fig1.savefig('Figure1_3D_projection_of_tracjectory.png', dpi=300, bbox_inches='tight')
+fig2.savefig('Figure2_state_estimates.png', dpi=300, bbox_inches='tight')
+fig3.savefig('Figure3_state_estimates_errors.png', dpi=300, bbox_inches='tight')
+fig4.savefig('Figure4_pos_vel_error.png', dpi=300, bbox_inches='tight')
+fig5.savefig('Figure5_NEES_NIS.png', dpi=300, bbox_inches='tight')
+fig6.savefig('Figure6_boxplot.png', dpi=300, bbox_inches='tight')
 plt.show()
 # %%

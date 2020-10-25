@@ -741,7 +741,6 @@ class ESKF:
         ), f"ESKF.NEES: x_true shape incorrect {x_true.shape}"
 
         d_x = cls.delta_x(x_nominal, x_true)
-        print('delta x', d_x)
         NEES_all = cls._NEES(d_x, P)  # TODO: NEES all
         NEES_pos = cls._NEES(d_x[POS_IDX], P[POS_IDX**2])  # TODO: NEES position
         NEES_vel = cls._NEES(d_x[VEL_IDX], P[VEL_IDX**2])  # TODO: NEES velocity
