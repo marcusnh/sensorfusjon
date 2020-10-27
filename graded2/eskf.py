@@ -740,6 +740,7 @@ class ESKF:
             16,
         ), f"ESKF.NEES: x_true shape incorrect {x_true.shape}"
 
+
         d_x = cls.delta_x(x_nominal, x_true)
         NEES_all = cls._NEES(d_x, P)  # TODO: NEES all
         NEES_pos = cls._NEES(d_x[POS_IDX], P[POS_IDX**2])  # TODO: NEES position

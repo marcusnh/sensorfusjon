@@ -119,7 +119,7 @@ cont_acc_noise_std = 1.167e-3 # TODO
 
 # Discrete sample noise at simulation rate used
 rate_std = cont_gyro_noise_std*np.sqrt(1/dt)
-acc_std  = cont_acc_noise_std*np.sqrt(1/dt)
+acc_std = cont_acc_noise_std*np.sqrt(1/dt)
 
 # Bias values
 rate_bias_driving_noise_std = 5e-5  # TODO Angular Random Walk, gjør om til riktig format
@@ -157,8 +157,8 @@ P_pred = np.zeros((steps, 15, 15))
 NIS = np.zeros(gnss_steps)
 
 # %% Initialise
-x_pred[0, POS_IDX] = np.array([0, 0, 0]) # starting 5 metres above ground
-x_pred[0, VEL_IDX] = np.array([0, 0, 0]) # starting at 20 m/s due north
+x_pred[0, POS_IDX] = np.array([0, 0, -5]) # starting 5 metres above ground
+x_pred[0, VEL_IDX] = np.array([20, 0, 0]) # starting at 20 m/s due north
 x_pred[0, ATT_IDX] = np.array([
     np.cos(45 * np.pi / 180),
     0, 0,
@@ -173,15 +173,24 @@ P_pred[0][ERR_GYRO_BIAS_IDX**2] = (1e-3)**2 * np.eye(3)
 
 # %% Run estimation
 
-N = steps
+N = 90000  #steps
 GNSSk = 0
+
+p_std = np.array([0.3, 0.3, 0.5])  # Measurement noise
+R_GNSS_const = np.diag(p_std ** 2)
 
 for k in tqdm(range(N)):
     if timeIMU[k] >= timeGNSS[GNSSk]:
-        R_GNSS = np.diag(np.array([0.3, 0.3, 0.5]) ** 2)  # TODO: Current GNSS covariance
-        NIS[GNSSk] = eskf.NIS_GNSS_position(x_pred[k, :], P_pred[k, :, :], z_GNSS[GNSSk, :], R_GNSS)  # TODO
+        R_GNSS = np.diag(p_std*accuracy_GNSS[GNSSk]) ** 2  # TODO: Current GNSS covariance
+        # R_GNSS = R_GNSS_const*accuracy_GNSS[GNSSk]/np.mean(accuracy_GNSS[:GNSSk])
 
-        x_est[k], P_est[k] = eskf.update_GNSS_position(x_pred[k, :], P_pred[k, :, :], z_GNSS[GNSSk, :], R_GNSS, lever_arm)  # TODO
+        NIS[GNSSk] = eskf.NIS_GNSS_position(
+            x_pred[k, :], P_pred[k, :, :], z_GNSS[GNSSk, :], R_GNSS, lever_arm=lever_arm
+        )  # TODO
+
+        x_est[k], P_est[k] = eskf.update_GNSS_position(
+            x_pred[k, :], P_pred[k, :, :], z_GNSS[GNSSk, :], R_GNSS, lever_arm
+        )  # TODO
         if eskf.debug:
             assert np.all(np.isfinite(P_est[k])), f"Not finite P_pred at index {k}"
 
@@ -205,11 +214,12 @@ for k in tqdm(range(N)):
 fig1 = plt.figure(1)
 ax = plt.axes(projection='3d')
 
-ax.plot3D(x_est[0:N, 1], x_est[0:N, 0], -x_est[0:N, 2])
-ax.plot3D(z_GNSS[0:N, 1], z_GNSS[0:N, 0], -z_GNSS[0:N, 2])
+ax.plot3D(x_est[0:N, 1], x_est[0:N, 0], -x_est[0:N, 2], color="blue")
+ax.plot3D(z_GNSS[0:GNSSk, 1], z_GNSS[0:GNSSk, 0], -z_GNSS[0:GNSSk, 2], color="red")
 ax.set_xlabel('East [m]')
 ax.set_xlabel('North [m]')
 ax.set_xlabel('Altitude [m]')
+ax.legend()
 
 plt.grid()
 
@@ -263,7 +273,9 @@ fig4 = plt.figure()
 
 gauss_compare = np.sum(np.random.randn(3, GNSSk)**2, axis=0)
 plt.boxplot([NIS[0:GNSSk], gauss_compare], notch=True)
-plt.legend('NIS', 'gauss')
+plt.legend(('NIS', 'gauss'))
 plt.grid()
+
+plt.show()
 
 # %%
