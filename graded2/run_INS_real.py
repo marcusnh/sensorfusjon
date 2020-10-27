@@ -102,10 +102,10 @@ else:
 
 lever_arm = loaded_data["leverarm"].ravel()
 timeGNSS = loaded_data["timeGNSS"].ravel()
-timeIMU = loaded_data["timeIMU"].ravel()
-z_acceleration = loaded_data["zAcc"].T
+timeIMU = loaded_data["timeIMU"].ravel()[50000:]
+z_acceleration = loaded_data["zAcc"].T[50000:]
 z_GNSS = loaded_data["zGNSS"].T
-z_gyroscope = loaded_data["zGyro"].T
+z_gyroscope = loaded_data["zGyro"].T[50000:]
 accuracy_GNSS = loaded_data['GNSSaccuracy'].ravel()
 
 dt = np.mean(np.diff(timeIMU))
