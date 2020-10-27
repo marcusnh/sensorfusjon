@@ -173,7 +173,7 @@ P_pred[0][ERR_GYRO_BIAS_IDX**2] = (1e-3)**2 * np.eye(3)
 
 # %% Run estimation
 
-N = 90000  #steps
+N = 9000  #steps
 GNSSk = 0
 
 p_std = np.array([0.3, 0.3, 0.5])  # Measurement noise
@@ -264,7 +264,7 @@ fig3 = plt.figure()
 
 plt.plot(NIS[:GNSSk])
 plt.plot(np.array([0, N-1]) * dt, (CI3@np.ones((1, 2))).T)
-insideCI = np.mean((CI3[0] <= NIS) * (NIS <= CI3[1]))
+insideCI = np.mean((CI3[0] <= NIS[:GNSSk]) * (NIS[:GNSSk] <= CI3[1]))
 plt.title(f'NIS ({100 *  insideCI:.1f} inside {100 * confprob} confidence interval)')
 plt.grid()
 
