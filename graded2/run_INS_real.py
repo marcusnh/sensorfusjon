@@ -173,7 +173,7 @@ P_pred[0][ERR_GYRO_BIAS_IDX**2] = (1e-3)**2 * np.eye(3)
 
 # %% Run estimation
 
-N = 9000  #steps
+N = 100000  #steps
 GNSSk = 0
 
 p_std = np.array([0.3, 0.3, 0.5])  # Measurement noise

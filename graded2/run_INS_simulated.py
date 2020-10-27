@@ -120,12 +120,12 @@ rate_std = 0.5 * cont_gyro_noise_std * np.sqrt(1 / dt)
 acc_std = 0.5 * cont_acc_noise_std * np.sqrt(1 / dt)
 
 # Bias values
-rate_bias_driving_noise_std = 5e-5 #(1e-6)**2
+rate_bias_driving_noise_std = 5e-5*1.2 #(1e-6)**2  # Gyro
 cont_rate_bias_driving_noise_std = (
     (1 / 3) * rate_bias_driving_noise_std / np.sqrt(1 / dt)
 )
 
-acc_bias_driving_noise_std = 4e-3
+acc_bias_driving_noise_std = 4e-3*2.5   # Accelerometer
 cont_acc_bias_driving_noise_std = 6 * acc_bias_driving_noise_std / np.sqrt(1 / dt)
 
 # Position and velocity measurement
@@ -185,7 +185,7 @@ dummy = eskf.update_GNSS_position(x_pred[0], P_pred[0], z_GNSS[0], R_GNSS, lever
 ## %% Run estimation
 # run this file with 'python -O run_INS_simulated.py' to turn of assertions and get about 8/5 speed increase for longer runs
 
-N: int = 5000  # TODO: choose a small value to begin with (500?), and gradually increase as you OK results
+N: int = 7000  # TODO: choose a small value to begin with (500?), and gradually increase as you OK results
 doGNSS: bool = True  # TODO: Set this to False if you want to check that the predictions make sense over reasonable time lenghts
 
 GNSSk: int = 0  # keep track of current step in GNSS measurements
@@ -350,6 +350,22 @@ axs4[1].legend([f"RMSE: {np.sqrt(np.mean(np.sum(delta_x[:N, VEL_IDX]**2, axis=1)
 confprob = 0.95
 CI15 = np.array(scipy.stats.chi2.interval(confprob, 15)).reshape((2, 1))
 CI3 = np.array(scipy.stats.chi2.interval(confprob, 3)).reshape((2, 1))
+
+CI3K = np.array(scipy.stats.chi2.interval(confprob, 3 * N)) / N
+CI15K = np.array(scipy.stats.chi2.interval(confprob, 15 * N)) / N
+ANEESpos = np.mean(NEES_pos)
+ANEESvel = np.mean(NEES_vel)
+ANEESatt = np.mean(NEES_att)
+ANEESgyrobias = np.mean(NEES_gyrobias)
+ANEESaccbias = np.mean(NEES_accbias)
+ANEES = np.mean(NEES_all)
+
+print(f"ANEESpos = {ANEESpos:.2f} with CI = [{CI3K[0]:.2f}, {CI3K[1]:.2f}]")
+print(f"ANEESvel = {ANEESvel:.2f} with CI = [{CI3K[0]:.2f}, {CI3K[1]:.2f}]")
+print(f"ANEESatt = {ANEESatt:.2f} with CI = [{CI3K[0]:.2f}, {CI3K[1]:.2f}]")
+print(f"ANEESgyrobias = {ANEESgyrobias:.2f} with CI = [{CI3K[0]:.2f}, {CI3K[1]:.2f}]")
+print(f"ANEESaccbias = {ANEESaccbias:.2f} with CI = [{CI3K[0]:.2f}, {CI3K[1]:.2f}]")
+print(f"ANEES = {ANEES:.2f} with CI = [{CI15K[0]:.2f}, {CI15K[1]:.2f}]")
 
 fig5, axs5 = plt.subplots(2, 1, num=5, clear=True)
 
