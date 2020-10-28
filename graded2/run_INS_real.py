@@ -102,10 +102,10 @@ else:
 
 lever_arm = loaded_data["leverarm"].ravel()
 timeGNSS = loaded_data["timeGNSS"].ravel()
-timeIMU = loaded_data["timeIMU"].ravel()[50000:]
-z_acceleration = loaded_data["zAcc"].T[50000:]
+timeIMU = loaded_data["timeIMU"].ravel()
+z_acceleration = loaded_data["zAcc"].T
 z_GNSS = loaded_data["zGNSS"].T
-z_gyroscope = loaded_data["zGyro"].T[50000:]
+z_gyroscope = loaded_data["zGyro"].T
 accuracy_GNSS = loaded_data['GNSSaccuracy'].ravel()
 
 dt = np.mean(np.diff(timeIMU))
@@ -122,10 +122,10 @@ rate_std = cont_gyro_noise_std*np.sqrt(1/dt)
 acc_std = cont_acc_noise_std*np.sqrt(1/dt)
 
 # Bias values
-rate_bias_driving_noise_std = 5e-5  # TODO Angular Random Walk, gjør om til riktig format
+rate_bias_driving_noise_std = 5e-5*3  # TODO Angular Random Walk, gjør om til riktig format
 cont_rate_bias_driving_noise_std = rate_bias_driving_noise_std/np.sqrt(1/dt)
 
-acc_bias_driving_noise_std = 4e-3  # TODO
+acc_bias_driving_noise_std = 4e-3*2.5  # TODO
 cont_acc_bias_driving_noise_std = acc_bias_driving_noise_std/np.sqrt(1/dt)
 
 # Position and velocity measurement
@@ -171,18 +171,30 @@ P_pred[0][ERR_ATT_IDX**2] = (np.pi/30)**2 * np.eye(3) # error rotation vector (n
 P_pred[0][ERR_ACC_BIAS_IDX**2] = 0.05**2 * np.eye(3)
 P_pred[0][ERR_GYRO_BIAS_IDX**2] = (1e-3)**2 * np.eye(3)
 
-# %% Run estimation
 
-N = 100000  #steps
-GNSSk = 0
-
-p_std = np.array([0.3, 0.3, 0.5])  # Measurement noise
+p_std = np.array([0.3, 0.3, 0.5])*1.3  # Measurement noise
 R_GNSS_const = np.diag(p_std ** 2)
 
-for k in tqdm(range(N)):
+# %% Run estimation
+
+N = round(len(z_acceleration)/4) - 100  #steps
+start = 100
+
+GNSSk = 0
+for x in range(start):
+    if timeIMU[x] >= timeGNSS[GNSSk]:
+        GNSSk += 1
+    x_est[x] = x_pred[x]
+    P_est[x] = P_pred[x]
+    x_pred[x+1] = x_est[x]
+    P_pred[x+1] = P_pred[x]
+
+start_GNSSk = GNSSk  # Saving the variable for calculating NIS from start.
+for k in tqdm(range(start, N)):
     if timeIMU[k] >= timeGNSS[GNSSk]:
-        R_GNSS = np.diag(p_std*accuracy_GNSS[GNSSk]) ** 2  # TODO: Current GNSS covariance
-        # R_GNSS = R_GNSS_const*accuracy_GNSS[GNSSk]/np.mean(accuracy_GNSS[:GNSSk])
+        # R_GNSS = np.diag(p_std*accuracy_GNSS[GNSSk]) ** 2  # TODO: Current GNSS covariance
+        R_GNSS = np.diag(p_std*accuracy_GNSS[GNSSk]/np.mean(accuracy_GNSS[:GNSSk]))
+
 
         NIS[GNSSk] = eskf.NIS_GNSS_position(
             x_pred[k, :], P_pred[k, :, :], z_GNSS[GNSSk, :], R_GNSS, lever_arm=lever_arm
@@ -260,11 +272,15 @@ fig2.suptitle('States estimates')
 confprob = 0.95
 CI3 = np.array(scipy.stats.chi2.interval(confprob, 3)).reshape((2, 1))
 
+CI3K = np.array(scipy.stats.chi2.interval(confprob, 3 * N)) / N
+ANIS = np.mean(NIS[start_GNSSk:GNSSk])
+print(f"ANIS = {ANIS:.2f} with CI = [{CI3K[0]:.2f}, {CI3K[1]:.2f}]")
+
 fig3 = plt.figure()
 
 plt.plot(NIS[:GNSSk])
 plt.plot(np.array([0, N-1]) * dt, (CI3@np.ones((1, 2))).T)
-insideCI = np.mean((CI3[0] <= NIS[:GNSSk]) * (NIS[:GNSSk] <= CI3[1]))
+insideCI = np.mean((CI3[0] <= NIS[start_GNSSk:GNSSk]) * (NIS[start_GNSSk:GNSSk] <= CI3[1]))
 plt.title(f'NIS ({100 *  insideCI:.1f} inside {100 * confprob} confidence interval)')
 plt.grid()
 
@@ -277,5 +293,7 @@ plt.legend(('NIS', 'gauss'))
 plt.grid()
 
 plt.show()
+
+
 
 # %%

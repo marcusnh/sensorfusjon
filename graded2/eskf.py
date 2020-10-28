@@ -279,7 +279,8 @@ class ESKF:
             30,
             30,
         ), f"ESKF.discrete_error_matrices: Van Loan matrix shape incorrect {omega.shape}"
-        VanLoanMatrix = la.expm(V)  # This can be slow...
+        #VanLoanMatrix = la.expm(V)  # This can be slow...
+        VanLoanMatrix = np.eye(*V.shape) + V + V @ V / 2
 
         # Rimelig sikker d betyr diskret
         Ad = (VanLoanMatrix[15:,15:]).T  # V1 i teoremet TODO:

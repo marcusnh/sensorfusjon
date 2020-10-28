@@ -94,6 +94,8 @@ loaded_data = scipy.io.loadmat(filename_to_load)
 
 S_a = loaded_data["S_a"]
 S_g = loaded_data["S_g"]
+#S_a = np.identity(3)
+#S_g = np.identity(3)
 lever_arm = loaded_data["leverarm"].ravel()
 timeGNSS = loaded_data["timeGNSS"].ravel()
 timeIMU = loaded_data["timeIMU"].ravel()
@@ -120,7 +122,7 @@ rate_std = 0.5 * cont_gyro_noise_std * np.sqrt(1 / dt)
 acc_std = 0.5 * cont_acc_noise_std * np.sqrt(1 / dt)
 
 # Bias values
-rate_bias_driving_noise_std = 5e-5*1.2 #(1e-6)**2  # Gyro
+rate_bias_driving_noise_std = 5e-5*3 #(1e-6)**2  # Gyro
 cont_rate_bias_driving_noise_std = (
     (1 / 3) * rate_bias_driving_noise_std / np.sqrt(1 / dt)
 )
@@ -129,7 +131,7 @@ acc_bias_driving_noise_std = 4e-3*2.5   # Accelerometer
 cont_acc_bias_driving_noise_std = 6 * acc_bias_driving_noise_std / np.sqrt(1 / dt)
 
 # Position and velocity measurement
-p_std = np.array([0.3, 0.3, 0.5])  # Measurement noise
+p_std = np.array([0.3, 0.3, 0.5])*1.3  # Measurement noise
 R_GNSS = np.diag(p_std ** 2)
 
 p_acc = 1e-16
@@ -353,12 +355,13 @@ CI3 = np.array(scipy.stats.chi2.interval(confprob, 3)).reshape((2, 1))
 
 CI3K = np.array(scipy.stats.chi2.interval(confprob, 3 * N)) / N
 CI15K = np.array(scipy.stats.chi2.interval(confprob, 15 * N)) / N
-ANEESpos = np.mean(NEES_pos)
-ANEESvel = np.mean(NEES_vel)
-ANEESatt = np.mean(NEES_att)
-ANEESgyrobias = np.mean(NEES_gyrobias)
-ANEESaccbias = np.mean(NEES_accbias)
-ANEES = np.mean(NEES_all)
+ANEESpos = np.mean(NEES_pos[:N])
+ANEESvel = np.mean(NEES_vel[:N])
+ANEESatt = np.mean(NEES_att[:N])
+ANEESgyrobias = np.mean(NEES_gyrobias[:N])
+ANEESaccbias = np.mean(NEES_accbias[:N])
+ANEES = np.mean(NEES_all[:N])
+ANIS = np.mean(NIS[:GNSSk])
 
 print(f"ANEESpos = {ANEESpos:.2f} with CI = [{CI3K[0]:.2f}, {CI3K[1]:.2f}]")
 print(f"ANEESvel = {ANEESvel:.2f} with CI = [{CI3K[0]:.2f}, {CI3K[1]:.2f}]")
@@ -366,6 +369,7 @@ print(f"ANEESatt = {ANEESatt:.2f} with CI = [{CI3K[0]:.2f}, {CI3K[1]:.2f}]")
 print(f"ANEESgyrobias = {ANEESgyrobias:.2f} with CI = [{CI3K[0]:.2f}, {CI3K[1]:.2f}]")
 print(f"ANEESaccbias = {ANEESaccbias:.2f} with CI = [{CI3K[0]:.2f}, {CI3K[1]:.2f}]")
 print(f"ANEES = {ANEES:.2f} with CI = [{CI15K[0]:.2f}, {CI15K[1]:.2f}]")
+print(f"ANIS = {ANIS:.2f} with CI = [{CI3K[0]:.2f}, {CI3K[1]:.2f}]")
 
 fig5, axs5 = plt.subplots(2, 1, num=5, clear=True)
 
