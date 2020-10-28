@@ -122,7 +122,7 @@ rate_std = 0.5 * cont_gyro_noise_std * np.sqrt(1 / dt)
 acc_std = 0.5 * cont_acc_noise_std * np.sqrt(1 / dt)
 
 # Bias values
-rate_bias_driving_noise_std = 5e-5*3 #(1e-6)**2  # Gyro
+rate_bias_driving_noise_std = 5e-5*2 #(1e-6)**2  # Gyro
 cont_rate_bias_driving_noise_std = (
     (1 / 3) * rate_bias_driving_noise_std / np.sqrt(1 / dt)
 )
@@ -131,7 +131,7 @@ acc_bias_driving_noise_std = 4e-3*2.5   # Accelerometer
 cont_acc_bias_driving_noise_std = 6 * acc_bias_driving_noise_std / np.sqrt(1 / dt)
 
 # Position and velocity measurement
-p_std = np.array([0.3, 0.3, 0.5])*1.3  # Measurement noise
+p_std = np.array([0.3, 0.3, 0.5])*1  # Measurement noise
 R_GNSS = np.diag(p_std ** 2)
 
 p_acc = 1e-16
@@ -179,7 +179,7 @@ P_pred[0][POS_IDX ** 2] = np.eye(3)*(1e-3)# TODO
 P_pred[0][VEL_IDX ** 2] = np.eye(3)*(1e-3)# TODO
 P_pred[0][ERR_ATT_IDX ** 2] = np.eye(3)*(1e-5)# TODO # error rotation vector (not quat)
 P_pred[0][ERR_ACC_BIAS_IDX ** 2] = np.eye(3)*(1e-2)# TODO
-P_pred[0][ERR_GYRO_BIAS_IDX ** 2] = np.eye(3)*(1e-4)# TODO
+P_pred[0][ERR_GYRO_BIAS_IDX ** 2] = np.eye(3)*(1e-4*1.5)# TODO
 
 # %% Test: you can run this cell to test your implementation
 dummy = eskf.predict(x_pred[0], P_pred[0], z_acceleration[0], z_gyroscope[0], dt)
@@ -215,7 +215,7 @@ for k in tqdm(range(N)):
     ) = eskf.NEESes(x_est[k], P_est[k], x_true[k])  # TODO: The true error state at step k
     if k < N - 1:
         x_pred[k + 1], P_pred[k + 1] = eskf.predict(
-            x_est[k, :], P_est[k, :, :], z_acceleration[k, :], z_gyroscope[k, :], dt
+            x_est[k, :], P_est[k, :, :], z_acceleration[k+1, :], z_gyroscope[k+1, :], dt
         )  # TODO: Hint: measurements come from the the present and past, not the future
 
     if eskf.debug:
