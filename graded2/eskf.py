@@ -664,11 +664,12 @@ class ESKF:
             x_nominal, P, z_GNSS_position, R_GNSS, lever_arm
         )
 
-        cholS = la.cholesky(S, lower=True)
+        #cholS = la.cholesky(S, lower=True)
 
-        invcholS_v = la.solve_triangular(cholS, v, lower=True)
+        #invcholS_v = la.solve_triangular(cholS, v, lower=True)
 
-        NIS = (invcholS_v ** 2).sum()  # TODO: Calculate NIS
+        #NIS = (invcholS_v ** 2).sum()  # TODO: Calculate NIS
+        NIS =v.T @ la.inv(S) @v
 
         assert NIS >= 0, "EKSF.NIS_GNSS_positionNIS: NIS not positive"
 
