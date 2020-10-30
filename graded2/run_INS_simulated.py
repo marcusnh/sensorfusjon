@@ -94,8 +94,8 @@ loaded_data = scipy.io.loadmat(filename_to_load)
 
 S_a = loaded_data["S_a"]
 S_g = loaded_data["S_g"]
-#S_a = np.identity(3)
-#S_g = np.identity(3)
+S_a = np.identity(3)
+S_g = np.identity(3)
 lever_arm = loaded_data["leverarm"].ravel()
 timeGNSS = loaded_data["timeGNSS"].ravel()
 timeIMU = loaded_data["timeIMU"].ravel()
@@ -119,19 +119,23 @@ cont_acc_noise_std = 1.167e-3*0.5  # (m/s**2)/sqrt(Hz)
 
 # Discrete sample noise at simulation rate used
 rate_std = 0.5 * cont_gyro_noise_std * np.sqrt(1 / dt)
+print("rate_std:",rate_std)
 acc_std = 0.5 * cont_acc_noise_std * np.sqrt(1 / dt)
+print("acc_std:",acc_std)
 
 # Bias values
-rate_bias_driving_noise_std = 5e-5*2 #(1e-6)**2  # Gyro
+rate_bias_driving_noise_std = 5e-5 #(1e-6)**2  # Gyro
 cont_rate_bias_driving_noise_std = (
     (1 / 3) * rate_bias_driving_noise_std / np.sqrt(1 / dt)
 )
 
 acc_bias_driving_noise_std = 4e-3*2.5   # Accelerometer
 cont_acc_bias_driving_noise_std = 6 * acc_bias_driving_noise_std / np.sqrt(1 / dt)
+print("cont_rate_bias_driving_noise_std:",cont_rate_bias_driving_noise_std)
+print("cont_acc_bias_driving_noise_std:",cont_acc_bias_driving_noise_std)
 
 # Position and velocity measurement
-p_std = np.array([0.3, 0.3, 0.5])*1  # Measurement noise
+p_std = np.array([0.3, 0.3, 0.5])*2  # Measurement noise
 R_GNSS = np.diag(p_std ** 2)
 
 p_acc = 1e-16
@@ -187,7 +191,7 @@ dummy = eskf.update_GNSS_position(x_pred[0], P_pred[0], z_GNSS[0], R_GNSS, lever
 ## %% Run estimation
 # run this file with 'python -O run_INS_simulated.py' to turn of assertions and get about 8/5 speed increase for longer runs
 
-N: int = 90000  # TODO: choose a small value to begin with (500?), and gradually increase as you OK results
+N: int = 20000  # TODO: choose a small value to begin with (500?), and gradually increase as you OK results
 doGNSS: bool = True  # TODO: Set this to False if you want to check that the predictions make sense over reasonable time lenghts
 
 GNSSk: int = 0  # keep track of current step in GNSS measurements
@@ -277,6 +281,7 @@ axs2[3].legend(["$x$", "$y$", "$z$"],loc='right')
 axs2[4].plot(t, x_est[:N, GYRO_BIAS_IDX] * 180 / np.pi * 3600)
 axs2[4].set(ylabel="Gyro bias [deg/h]")
 axs2[4].legend(["$x$", "$y$", "$z$"],loc='right')
+axs2[4].set_ylim([-500, 500])
 
 
 fig2.suptitle("States estimates")
@@ -337,6 +342,7 @@ axs3[4].legend(
     ],
 loc='right')
 
+
 fig3.suptitle("States estimate errors")
 
 # Error distance plot
@@ -358,6 +364,7 @@ axs4[0].legend(
 axs4[1].plot(t, np.linalg.norm(delta_x[:N, VEL_IDX], axis=1))
 axs4[1].set(ylabel="Speed error [m/s]")
 axs4[1].legend([f"RMSE: {np.sqrt(np.mean(np.sum(delta_x[:N, VEL_IDX]**2, axis=1)))}"])
+
 
 
 # %% Consistency

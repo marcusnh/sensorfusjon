@@ -92,14 +92,14 @@ except Exception as e:
 filename_to_load = "task_real.mat"
 loaded_data = scipy.io.loadmat(filename_to_load)
 
-do_corrections = True # TODO: set to false for the last task
+do_corrections = False # TODO: set to false for the last task
 if do_corrections:
     S_a = loaded_data['S_a']
     S_g = loaded_data['S_g']
 else:
     # Only accounts for basic mounting directions
     S_a = S_g = np.array([[0, 1, 0], [-1, 0, 0], [0, 0, 1]])
-
+print(S_a,S_g)
 lever_arm = loaded_data["leverarm"].ravel()
 timeGNSS = loaded_data["timeGNSS"].ravel()
 timeIMU = loaded_data["timeIMU"].ravel()
@@ -122,7 +122,10 @@ acc_std =  0.06/(np.sqrt(3600)) *0.99 #from  m/(s*sqrt(h)) to m/(s*sqrt(s))
 cont_rate_bias_driving_noise_std = 0.5*np.pi/180*(1/np.sqrt(3600))*1.1 #from degree/sqrt(hour) to rad/s
 
 cont_acc_bias_driving_noise_std = 0.05*9.81/1000*0.99
-
+print(rate_std)
+print(acc_std)
+print(cont_rate_bias_driving_noise_std)
+print(cont_acc_bias_driving_noise_std)
 # Position and velocity measurement
 p_acc = 1e-16 # TODO # Bias Instability
 
@@ -172,8 +175,8 @@ R_GNSS_const = np.diag(p_std ** 2)
 
 # %% Run estimation
 
-N = round(len(z_acceleration)/9)-100 #steps
-start = 0
+N = round(len(z_acceleration)/9)   #steps
+start = 50000
 
 GNSSk = 0
 for x in range(start):
