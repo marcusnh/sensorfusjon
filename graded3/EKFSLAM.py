@@ -27,7 +27,7 @@ class EKFSLAM:
         self.R = R
         self.do_asso = do_asso
         self.alphas = alphas
-        self.sensor_offset = sensor_offset
+        self.sensor_offset = sensor_offset #L
 
     def f(self, x: np.ndarray, u: np.ndarray) -> np.ndarray:
         """Add the odometry u to the robot state x.
@@ -44,7 +44,13 @@ class EKFSLAM:
         np.ndarray, shape = (3,)
             the predicted state
         """
-        xpred = # TODO, eq (11.7). Should wrap heading angle between (-pi, pi), see utils.wrapToPi
+        #wrap heading angle between (-pi,pi):
+        psi = utils.wrapToPi(x[2])
+        phi = utils.wrapToPi(u[2])
+
+        xpred = np.array([x[0]+u[0]*np.cos(psi)-u[1]*np.sin(psi),
+                           x[1]+u[0]*np.cos(psi)-u[1]*np.sin(psi),
+                           psi+phi]).T# TODO, eq (11.7). Should wrap heading angle between (-pi, pi), see utils.wrapToPi
 
         assert xpred.shape == (3,), "EKFSLAM.f: wrong shape for xpred"
         return xpred
@@ -64,7 +70,11 @@ class EKFSLAM:
         np.ndarray
             The Jacobian of f wrt. x.
         """
-        Fx = # TODO, eq (11.13)
+        psi = utils.wrapToPi(x[2])
+
+        Fx = np.array([[1,0,-u[0]*np.sin(psi)-u[1]*np.cos(psi)],
+                       [0,1,u[0]*np.cos(psi)-u[1]*np.sin(psi)],
+                       [0,0,1]])# TODO, eq (11.13)
 
         assert Fx.shape == (3, 3), "EKFSLAM.Fx: wrong shape"
         return Fx
@@ -84,7 +94,11 @@ class EKFSLAM:
         np.ndarray
             The Jacobian of f wrt. u.
         """
-        Fu = # TODO, eq (11.14)
+        psi = utils.wrapToPi(x[2])
+
+        Fu = np.array([[np.cos(psi), -np.sin(psi), 0],
+                       [np.sin(psi),np.cos(psi),0],
+                       [0,0,1]]) # TODO, eq (11.14)
 
         assert Fu.shape == (3, 3), "EKFSLAM.Fu: wrong shape"
         return Fu
@@ -118,21 +132,22 @@ class EKFSLAM:
         ), "EKFSLAM.predict: input eta and P shape do not match"
         etapred = np.empty_like(eta)
 
-        x = eta[:3]
-        etapred[:3] = # TODO robot state prediction
-        etapred[3:] = # TODO landmarks: no effect
+        x = eta[:3] #pose vector
+        m = eta[3:] #landmarks
+        etapred[:3] =self.f(x,z_odo) # TODO robot state prediction
+        etapred[3:] = m # TODO landmarks: no effect
 
-        Fx = # TODO
-        Fu = # TODO
+        Fx = self.Fx(x, z_odo)# TODO
+        Fu = self.Fu(x, z_odo)# TODO
 
         # evaluate covariance prediction in place to save computation
         # only robot state changes, so only rows and colums of robot state needs changing
         # cov matrix layout:
         # [[P_xx, P_xm],
         # [P_mx, P_mm]]
-        P[:3, :3] = # TODO robot cov prediction
-        P[:3, 3:] = # TODO robot-map covariance prediction
-        P[3:, :3] = # TODO map-robot covariance: transpose of the above
+        P[:3, :3] = Fx@P[:3, :3]@Fx.T + Fu@self.Q@Fu.T # TODO robot cov prediction
+        P[:3, 3:] = Fx@P[:3, 3:]# TODO robot-map covariance prediction
+        P[3:, :3] = P[3:, :3]@Fx.T# TODO map-robot covariance: transpose of the above
 
         assert np.allclose(P, P.T), "EKFSLAM.predict: not symmetric P"
         assert np.all(
@@ -162,17 +177,18 @@ class EKFSLAM:
         m = eta[3:].reshape((-1, 2)).T
 
         Rot = rotmat2d(-x[2])
+        ro = eta[0:2]
 
         # None as index ads an axis with size 1 at that position.
         # Numpy broadcasts size 1 dimensions to any size when needed
-        delta_m = # TODO, relative position of landmark to sensor on robot in world frame
+        delta_m = (m - ro) # TODO, relative position of landmark to sensor on robot in world frame
 
-        zpredcart = # TODO, predicted measurements in cartesian coordinates, beware sensor offset for VP
+        zpredcart =delta_m-Rot@self.sensor_offset # TODO, predicted measurements in cartesian coordinates, beware sensor offset for VP
 
-        zpred_r = # TODO, ranges
-        zpred_theta = # TODO, bearings
-        zpred = # TODO, the two arrays above stacked on top of each other vertically like 
-        # [ranges; 
+        zpred_r = np.sqrt(sum(zpredcart**2))# TODO, ranges
+        zpred_theta =np.arctan2(zpredcart[1,:],zpredcart[0,:]) # TODO, bearings
+        zpred =np.vstack(zpred_r,zpred_theta) # TODO, the two arrays above stacked on top of each other vertically like
+        # [ranges;
         #  bearings]
         # into shape (2, #lmrk)
 
@@ -205,13 +221,13 @@ class EKFSLAM:
 
         Rot = rotmat2d(x[2])
 
-        delta_m = # TODO, relative position of landmark to robot in world frame. m - rho that appears in (11.15) and (11.16)
+        delta_m = m-eta[0:2]# TODO, relative position of landmark to robot in world frame. m - rho that appears in (11.15) and (11.16)
 
-        zc = # TODO, (2, #measurements), each measured position in cartesian coordinates like
+        zc = delta_m - Rot@self.sensor_offset  # TODO, (2, #measurements), each measured position in cartesian coordinates like
         # [x coordinates;
         #  y coordinates]
 
-        zpred = # TODO (2, #measurements), predicted measurements, like
+        zpred =# TODO (2, #measurements), predicted measurements, like
         # [ranges;
         #  bearings]
         zr = # TODO, ranges
