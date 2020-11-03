@@ -221,7 +221,7 @@ class EKFSLAM:
 
         Rot = rotmat2d(x[2])
 
-        delta_m = m-eta[0:2].reshape(2,1)# TODO, relative position of landmark to robot in world frame. m - rho that appears in (11.15) and (11.16)
+        delta_m = m-eta[0:2, None]# TODO, relative position of landmark to robot in world frame. m - rho that appears in (11.15) and (11.16)
 
         zc = delta_m - (Rot@self.sensor_offset).reshape(2,1)  # TODO, (2, #measurements), each measured position in cartesian coordinates like
         # [x coordinates;
@@ -412,7 +412,9 @@ class EKFSLAM:
 
             # Here you can use simply np.kron (a bit slow) to form the big (very big in VP after a while) R,
             # or be smart with indexing and broadcasting (3d indexing into 2d mat) realizing you are adding the same R on all diagonals
-            S = H @ P @ H.T + np.kron(np.eye(numLmk),self.R)# TODO,
+            S = H @ P @ H.T #+ np.kron(np.eye(numLmk),self.R)# TODO,
+            idxs = np.arange(numLmk *2).reshape(numLmk, 2)
+            S[idxs[..., None], idxs[:,None]] +=self.R[None]
             # fast?
             assert (
                 S.shape == zpred.shape * 2

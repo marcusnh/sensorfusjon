@@ -93,17 +93,19 @@ odometry = simSLAM_ws["odometry"].T
 poseGT = simSLAM_ws["poseGT"].T
 
 K = len(z)
-M = len(landmarks)
+print(K)
+M = len(landmarks)/10
+print(M)
 
 # %% Initilize
-Q = np.diag([1,1,1])**2 # TODO
-R =  np.diag([1,1])**2 # TODO
+Q = np.diag([1e-1,1e-1,1e-1])**2 # TODO
+R =  np.diag([4e-2, 2e-2])**2 # TODO
 
 doAsso = True
 
 JCBBalphas = np.array(
     # TODO,
-    [1e-3, 1e-4]
+    [1e-6, 1e-6]
 )  # first is for joint compatibility, second is individual
 # these can have a large effect on runtime either through the number of landmarks created
 # or by the size of the association search space.
@@ -133,7 +135,7 @@ P_pred[0] = np.zeros((3, 3))  # we also say that we are 100% sure about that
 # plotting
 
 doAssoPlot = False
-playMovie = True
+playMovie = False
 if doAssoPlot:
     figAsso, axAsso = plt.subplots(num=1, clear=True)
 
@@ -164,9 +166,6 @@ for k, z_k in tqdm(enumerate(z[:N])):
         NISnorm[k] = 1
         CInorm[k].fill(1)
 
-    print(eta_pred[k][:3])
-    print(poseGT[k])
-    print(P_pred[k])
     NEESes[k] = slam.NEESes(eta_hat[k][:3], P_hat[k][:3,:3], poseGT[k]) # TODO, use provided function slam.NEESes
 
     if doAssoPlot and k > 0:
