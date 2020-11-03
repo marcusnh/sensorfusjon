@@ -1,8 +1,17 @@
 import numpy as np
-xpred = np.array([[1,2,4],
-                    [1,2,4],
-                    [1,2,4],
-                    [1,2,4]])
-print(xpred.shape)
+i = 1
+ind = 2 * i # starting postion of the ith landmark into H
+inds = slice(ind, ind + 2)
+a = np.array([1,2,3,4,5,6,7,8])
+print(a[1:2])
 
-print(xpred.shape == (3,))
+
+b = np.array([[-np.sin(1+1)],
+                        [np.cos(2)]])
+b = np.array([-np.sin(1+1),
+
+                        np.cos(2)]).T
+
+c = a.T
+print(c.append(1))
+print(b.shape)
