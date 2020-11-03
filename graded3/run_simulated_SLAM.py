@@ -97,7 +97,7 @@ M = len(landmarks)
 
 # %% Initilize
 Q = np.diag([1,1,1])**2 # TODO
-R =  np.diag([1,1,1])**2 # TODO
+R =  np.diag([1,1])**2 # TODO
 
 doAsso = True
 
@@ -164,7 +164,10 @@ for k, z_k in tqdm(enumerate(z[:N])):
         NISnorm[k] = 1
         CInorm[k].fill(1)
 
-    NEESes[k] = slam.NEES(etapred[k][:3], P_pred[k], poseGT[k] ) # TODO, use provided function slam.NEESes
+    print(eta_pred[k][:3])
+    print(poseGT[k])
+    print(P_pred[k])
+    NEESes[k] = slam.NEESes(eta_hat[k][:3], P_hat[k][:3,:3], poseGT[k]) # TODO, use provided function slam.NEESes
 
     if doAssoPlot and k > 0:
         axAsso.clear()
