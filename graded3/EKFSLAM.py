@@ -252,14 +252,10 @@ class EKFSLAM:
 
             # TODO: Set H or Hx and Hm here:
             #measurement jacobians
-            print(Rpihalf.shape,'\n')
-            print(Rpihalf)
-            print(zc.shape)
-            print(zc)
-            jac_z_cb[:,2:] = -Rpihalf @ zc
+            jac_z_cb[:,2] = -Rpihalf @ zc[:, i]
             Hx[ind,:] = (1/la.norm(zc[:,i]))*zc[:,i].T@jac_z_cb
-            Hx[ind + 1,:] =((zc[:,i]*Rpihalf).T)/(la.norm(zc[:,i])**2)@jac_z_cb
-            Hm[inds,inds] = -Hx[inds,0:3]
+            Hx[ind + 1,:] =((zc[:,i]@Rpihalf).T)/(la.norm(zc[:,i])**2)@jac_z_cb
+            Hm[inds,inds] = -Hx[inds,0:2]
 
         # TODO: You can set some assertions here to make sure that some of the structure in H is correct
         return H
@@ -416,7 +412,7 @@ class EKFSLAM:
 
             # Here you can use simply np.kron (a bit slow) to form the big (very big in VP after a while) R,
             # or be smart with indexing and broadcasting (3d indexing into 2d mat) realizing you are adding the same R on all diagonals
-            S = H @ P @ H.T + np.kron(self.R)# TODO,
+            S = H @ P @ H.T + np.kron(np.eye(numLmk),self.R)# TODO,
             # fast?
             assert (
                 S.shape == zpred.shape * 2
@@ -439,7 +435,7 @@ class EKFSLAM:
 
                 # Kalman mean update
                 S_cho_factors = la.cho_factor(Sa) # Optional, used in places for S^-1, see scipy.linalg.cho_factor and scipy.linalg.cho_solve
-                W = P @ H.T @ S_cho_factors# TODO, Kalman gain, can use S_cho_factors
+                W = P @ la.cho_solve(S_cho_factors, Ha).T # TODO, Kalman gain, can use S_cho_factors
                 # W = P @ H.T @ la.inv(Sa)
                 etaupd = eta + W@v # TODO, Kalman update
 
@@ -450,7 +446,7 @@ class EKFSLAM:
 
                 # calculate NIS, can use S_cho_factors
                 # NIS =v.T @ la.inv(S) @v # TODO
-                NIS = v.T @ S_cho_factors @ v
+                NIS = v.T @ la.cho_solve(S_cho_factors,v)
 
                 # When tested, remove for speed
                 assert np.allclose(Pupd, Pupd.T), "EKFSLAM.update: Pupd not symmetric"
