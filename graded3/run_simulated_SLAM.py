@@ -98,14 +98,14 @@ M = len(landmarks)/10
 print(M)
 
 # %% Initilize
-Q = np.diag([1e-1,1e-1,1e-1])**2 # TODO
-R =  np.diag([4e-2, 2e-2])**2 # TODO
+Q = np.diag([0.5e-1,0.5e-1,0.12e-1])**2 # TODO
+R =  np.diag([4e-2, 4e-2])**2 # TODO
 
 doAsso = True
 
 JCBBalphas = np.array(
     # TODO,
-    [1e-10, 1e-5]
+    [1e-6, 4e-5]
 )  # first is for joint compatibility, second is individual
 # these can have a large effect on runtime either through the number of landmarks created
 # or by the size of the association search space.
@@ -134,13 +134,13 @@ P_pred[0] = np.zeros((3, 3))  # we also say that we are 100% sure about that
 # %% Set up plotting
 # plotting
 
-doAssoPlot = False
-playMovie = False
+doAssoPlot = True
+playMovie = True
 if doAssoPlot:
     figAsso, axAsso = plt.subplots(num=1, clear=True)
 
 # %% Run simulation
-N = round(K/20)
+N = round(K/50)
 
 print("starting sim (" + str(N) + " iterations)")
 pos_hat: List[Optional[np.ndarray]] = [None] * K

@@ -49,7 +49,7 @@ class EKFSLAM:
         phi = utils.wrapToPi(u[2])
 
         xpred = np.array([x[0]+u[0]*np.cos(psi)-u[1]*np.sin(psi),
-                           x[1]+u[0]*np.cos(psi)-u[1]*np.sin(psi),
+                           x[1]+u[0]*np.sin(psi)+u[1]*np.cos(psi),
                            psi+phi]).T# TODO, eq (11.7). Should wrap heading angle between (-pi, pi), see utils.wrapToPi
 
         assert xpred.shape == (3,), "EKFSLAM.f: wrong shape for xpred"
@@ -147,7 +147,7 @@ class EKFSLAM:
         # [P_mx, P_mm]]
         P[:3, :3] = Fx@P[:3, :3]@Fx.T + Fu@self.Q@Fu.T # TODO robot cov prediction
         P[:3, 3:] = Fx@P[:3, 3:]# TODO robot-map covariance prediction
-        P[3:, :3] = P[:3, 3:].T # P[3:, :3]@Fx.T# TODO map-robot covariance: transpose of the above
+        P[3:, :3] = P[3:, :3]@Fx.T # P[3:, :3]@Fx.T# TODO map-robot covariance: transpose of the above
 
         assert np.allclose(P, P.T), "EKFSLAM.predict: not symmetric P"
         assert np.all(
@@ -263,7 +263,10 @@ class EKFSLAM:
             #measurement jacobians
             jac_z_cb[:,2] = -Rpihalf @ delta_m[:, i]
             Hx[ind,:] = (1/la.norm(zc[:,i]))*zc[:,i].T@jac_z_cb
+            Hx[ind,:] = (1/zpred_r[i])*zc[:,i].T@jac_z_cb
+
             Hx[ind + 1,:] =(zc[:,i].T@Rpihalf.T)/(la.norm(zc[:,i])**2)@jac_z_cb
+            Hx[ind + 1,:] =((zc[:,i].T@Rpihalf.T)/(zpred_r[i])**2)@jac_z_cb
             Hm[inds,inds] = (Hx[inds,0:2])
         #H = np.hstack((Hx, Hm))
 
@@ -308,10 +311,12 @@ class EKFSLAM:
             ind = 2 * j
             inds = slice(ind, ind + 2)
             zj = z[inds]
-            zj_car = np.array([zj[0]*np.cos(zj[1]), zj[0]*np.sin(zj[1])])
+            zj_car = np.array([zj[0]*np.cos(zj[1]+eta[2]), zj[0]*np.sin(zj[1]+eta[2])])
 
             rot = rotmat2d(zj[1] + eta[2]) # TODO, rotmat in Gz
-            lmnew[inds] = rotmat2d(eta[2])@zj_car+sensor_offset_world + eta[0:2] # TODO, calculate position of new landmark in world frame
+            lmnew[inds] = zj_car+sensor_offset_world + eta[0:2] # TODO, calculate position of new landmark in world frame
+            #lmnew[inds] = rot[:,0]*zj[0]+sensor_offset_world + eta[0:2] # TODO, calculate position of new landmark in world frame
+
             #angle_matrix = np.array([[-np.sin(zj[1]+eta[2])],
             #                        [np.cos(zj[1]+eta[2])]])
             angle_matrix = np.array([-np.sin(zj[1]+eta[2]),
@@ -454,7 +459,7 @@ class EKFSLAM:
                 S_cho_factors = la.cho_factor(Sa)
                 #print('\n', len(S_cho_factors))
                 #print('\n', S_cho_factors) # Optional, used in places for S^-1, see scipy.linalg.cho_factor and scipy.linalg.cho_solve
-                W = P @ la.cho_solve(S_cho_factors, Ha).T # TODO, Kalman gain, can use S_cho_factors
+                W = la.cho_solve(S_cho_factors, Ha@P).T # TODO, Kalman gain, can use S_cho_factors
                 # W = P @ H.T @ la.inv(Sa)
                 etaupd = eta + W @ v # TODO, Kalman update
 
@@ -489,7 +494,7 @@ class EKFSLAM:
                 z_new_inds[1::2] = is_new_lmk
                 z_new = z[z_new_inds]
                 etaupd, Pupd = self.add_landmarks(eta, P, z_new) # TODO, add new landmarks.
-        
+
         assert np.allclose(Pupd, Pupd.T), "EKFSLAM.update: Pupd must be symmetric"
         assert np.all(np.linalg.eigvals(Pupd) >= 0), "EKFSLAM.update: Pupd must be PSD"
 
