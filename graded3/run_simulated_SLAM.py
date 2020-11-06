@@ -105,7 +105,7 @@ doAsso = True
 
 JCBBalphas = np.array(
     # TODO,
-    [1e-6, 1e-6]
+    [1e-10, 1e-5]
 )  # first is for joint compatibility, second is individual
 # these can have a large effect on runtime either through the number of landmarks created
 # or by the size of the association search space.
@@ -140,16 +140,20 @@ if doAssoPlot:
     figAsso, axAsso = plt.subplots(num=1, clear=True)
 
 # %% Run simulation
-N = K
+N = round(K/20)
 
 print("starting sim (" + str(N) + " iterations)")
+pos_hat: List[Optional[np.ndarray]] = [None] * K
+pos_hat[0] = poseGT[0][:3]
 
 for k, z_k in tqdm(enumerate(z[:N])):
 
     eta_hat[k], P_hat[k], NIS[k], a[k] = slam.update(eta_pred[k], P_pred[k], z[k]) # TODO update
 
+
+
     if k < K - 1:
-        eta_pred[k + 1], P_pred[k + 1] = slam.predict(eta_hat[k],P_hat[k], odometry[k]) # TODO predict
+        eta_pred[k + 1], P_pred[k + 1] = slam.predict(eta_hat[k],P_hat[k], odometry[k, :]) # TODO predict
 
     assert (
         eta_hat[k].shape[0] == P_hat[k].shape[0]
@@ -166,8 +170,8 @@ for k, z_k in tqdm(enumerate(z[:N])):
         NISnorm[k] = 1
         CInorm[k].fill(1)
 
-    NEESes[k] = slam.NEESes(eta_hat[k][:3], P_hat[k][:3,:3], poseGT[k]) # TODO, use provided function slam.NEESes
-
+    NEESes[k] = slam.NEESes(eta_hat[k][:3], P_hat[k][:3,:3], poseGT[k,:]) # TODO, use provided function slam.NEESes
+    '''
     if doAssoPlot and k > 0:
         axAsso.clear()
         axAsso.grid()
@@ -182,12 +186,37 @@ for k, z_k in tqdm(enumerate(z[:N])):
         axAsso.set_title(f"k = {k}, {np.count_nonzero(a[k] > -1)} associations")
         plt.draw()
         plt.pause(0.001)
+    #print(eta_hat[k][:3])
+    #print(pos_hat[k])
+    pos_hat[k] = eta_hat[k][:3]
+    #print(pos_hat[:k])
+    fig2, ax2 = plt.subplots(num=2, clear=True)
+    # landmarks
+    landmark = eta_hat[k][3:].reshape(-1, 2)
+    lmk_est_final = landmark
+    ax2.scatter(*landmark.T, c="r", marker="^")
+    ax2.scatter(*lmk_est_final.T, c="b", marker=".")
+    # Draw covariance ellipsis of measurements
+    for l, lmk_l in enumerate(lmk_est_final):
+        idxs = slice(3 + 2 * l, 3 + 2 * l + 2)
+        rI = P_hat[k][idxs, idxs]
+        el = ellipse(lmk_l, rI, 5, 200)
+        ax2.plot(*el.T, "b")
+
+    ax2.plot(*poseGT[:k].T[:2], c="r", label="gt")
+    ax2.plot(pos_hat[:k][:2], c="g", label="est")
+    ax2.set(title="results")
+    ax2.axis("equal")
+    ax2.grid()
+    '''
+
+
+
 
 
 print("sim complete")
-
 pose_est = np.array([x[:3] for x in eta_hat[:N]])
-lmk_est = [eta_hat_k[3:].reshape(-1, 2) for eta_hat_k in eta_hat]
+lmk_est = [eta_hat_k[3:].reshape(-1, 2) for eta_hat_k in eta_hat[:N]]
 lmk_est_final = lmk_est[N - 1]
 
 np.set_printoptions(precision=4, linewidth=100)

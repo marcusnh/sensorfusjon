@@ -13,5 +13,5 @@ b = np.array([-np.sin(1+1),
                         np.cos(2)]).T
 
 c = a.T
-print(a[0:2])
+print(a[3:])
 print(b.shape)

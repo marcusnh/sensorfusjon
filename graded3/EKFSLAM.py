@@ -181,12 +181,20 @@ class EKFSLAM:
 
         # None as index ads an axis with size 1 at that position.
         # Numpy broadcasts size 1 dimensions to any size when needed
-        delta_m = (m - ro.reshape(2,1)) # TODO, relative position of landmark to sensor on robot in world frame
+        delta_m = (m - ro.reshape(2,1))-(Rot.T@self.sensor_offset).reshape(2,1) # TODO, relative position of landmark to sensor on robot in world frame
+        print(" in def h, shape of delta_m:", delta_m.shape)
 
-        zpredcart =(delta_m-(Rot@self.sensor_offset).reshape(2,1)) # TODO, predicted measurements in cartesian coordinates, beware sensor offset for VP
+        # cartesian measurement in world:
+        #zc = (m-ro.reshape(2,1))-(Rot.T@self.sensor_offset).reshape(2,1)
+        zpredcart = Rot @ delta_m
+        #zpredcart =(delta_m-(Rot@self.sensor_offset).reshape(2,1)) # TODO, predicted measurements in cartesian coordinates, beware sensor offset for VP
         # tips: bruke transpose av Rot og så Rot igjen? why?
-        zpred_r = la.norm(zpredcart, axis=0) #np.sqrt(sum(zpredcart**2))# TODO, ranges
-        zpred_theta =np.arctan2((Rot@zpredcart)[1,:],(Rot@zpredcart)[0,:]) # TODO, bearings
+        #zpred_r = la.norm(zpredcart, axis=0) #np.sqrt(sum(zpredcart**2))# TODO, ranges
+        zpred_r = la.norm(delta_m, axis=0)
+        #zpred_theta =np.arctan2((Rot@zpredcart)[1,:],(zpredcart)[0,:]) # TODO, bearings
+        zpred_theta =np.arctan2((zpredcart)[1,:],(zpredcart)[0,:]) # TODO, bearings
+
+        #zpred_theta =np.arctan2(zc[1,:],zc[0,:])
         zpred =np.vstack((zpred_r,zpred_theta)) # TODO, the two arrays above stacked on top of each other vertically like
         # [ranges;
         #  bearings]
@@ -221,16 +229,17 @@ class EKFSLAM:
 
         Rot = rotmat2d(x[2])
 
-        delta_m = m-eta[0:2, None]# TODO, relative position of landmark to robot in world frame. m - rho that appears in (11.15) and (11.16)
-
+        delta_m = (m-eta[0:2, None])# TODO, relative position of landmark to robot in world frame. m - rho that appears in (11.15) and (11.16)
+        print(" in def H, shape of delta_m:", delta_m.shape)
         zc = delta_m - (Rot@self.sensor_offset).reshape(2,1)  # TODO, (2, #measurements), each measured position in cartesian coordinates like
         # [x coordinates;
         #  y coordinates]
 
-        zpred = self.h(eta)# TODO (2, #measurements), predicted measurements, like
+        zpred_r = la.norm(zc, axis=0)# TODO (2, #measurements), predicted measurements, like
+        zpred_theta =np.arctan2((zc)[1,:],(zc)[0,:])
         # [ranges;
         #  bearings]
-        zr =zpred[0] # TODO, ranges
+        # TODO, ranges
 
         Rpihalf = rotmat2d(np.pi / 2)
 
@@ -252,10 +261,12 @@ class EKFSLAM:
 
             # TODO: Set H or Hx and Hm here:
             #measurement jacobians
-            jac_z_cb[:,2] = -Rpihalf @ zc[:, i]
+            jac_z_cb[:,2] = -Rpihalf @ delta_m[:, i]
             Hx[ind,:] = (1/la.norm(zc[:,i]))*zc[:,i].T@jac_z_cb
-            Hx[ind + 1,:] =((zc[:,i]@Rpihalf).T)/(la.norm(zc[:,i])**2)@jac_z_cb
-            Hm[inds,inds] = -Hx[inds,0:2]
+            Hx[ind + 1,:] =(zc[:,i].T@Rpihalf.T)/(la.norm(zc[:,i])**2)@jac_z_cb
+            Hm[inds,inds] = (Hx[inds,0:2])
+        #H = np.hstack((Hx, Hm))
+
 
         # TODO: You can set some assertions here to make sure that some of the structure in H is correct
         return H
@@ -409,10 +420,13 @@ class EKFSLAM:
             # Prediction and innovation covariance
             zpred =self.h(eta) #TODO
             H =  self.H(eta)# TODO
+            #print("zpred:",zpred)
+            #print("H:",H)
 
             # Here you can use simply np.kron (a bit slow) to form the big (very big in VP after a while) R,
             # or be smart with indexing and broadcasting (3d indexing into 2d mat) realizing you are adding the same R on all diagonals
             S = H @ P @ H.T #+ np.kron(np.eye(numLmk),self.R)# TODO,
+            #print("S")
             idxs = np.arange(numLmk *2).reshape(numLmk, 2)
             S[idxs[..., None], idxs[:,None]] +=self.R[None]
             # fast?
@@ -423,6 +437,8 @@ class EKFSLAM:
 
             # Perform data association
             za, zpred, Ha, Sa, a = self.associate(z, zpred, H, S)
+            print('a should med -1:', a)
+
 
             # No association could be made, so skip update
             if za.shape[0] == 0:
@@ -434,12 +450,13 @@ class EKFSLAM:
                 # Create the associated innovation
                 v = za.ravel() - zpred  # za: 2D -> flat
                 v[1::2] = utils.wrapToPi(v[1::2])
-
                 # Kalman mean update
-                S_cho_factors = la.cho_factor(Sa) # Optional, used in places for S^-1, see scipy.linalg.cho_factor and scipy.linalg.cho_solve
+                S_cho_factors = la.cho_factor(Sa)
+                #print('\n', len(S_cho_factors))
+                #print('\n', S_cho_factors) # Optional, used in places for S^-1, see scipy.linalg.cho_factor and scipy.linalg.cho_solve
                 W = P @ la.cho_solve(S_cho_factors, Ha).T # TODO, Kalman gain, can use S_cho_factors
                 # W = P @ H.T @ la.inv(Sa)
-                etaupd = eta + W@v # TODO, Kalman update
+                etaupd = eta + W @ v # TODO, Kalman update
 
                 # Kalman cov update: use Joseph form for stability
                 jo = -W @ Ha
@@ -472,7 +489,7 @@ class EKFSLAM:
                 z_new_inds[1::2] = is_new_lmk
                 z_new = z[z_new_inds]
                 etaupd, Pupd = self.add_landmarks(eta, P, z_new) # TODO, add new landmarks.
-
+        
         assert np.allclose(Pupd, Pupd.T), "EKFSLAM.update: Pupd must be symmetric"
         assert np.all(np.linalg.eigvals(Pupd) >= 0), "EKFSLAM.update: Pupd must be PSD"
 
