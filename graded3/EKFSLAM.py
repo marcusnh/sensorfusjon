@@ -147,7 +147,7 @@ class EKFSLAM:
         # [P_mx, P_mm]]
         P[:3, :3] = Fx@P[:3, :3]@Fx.T + Fu@self.Q@Fu.T # TODO robot cov prediction
         P[:3, 3:] = Fx@P[:3, 3:]# TODO robot-map covariance prediction
-        P[3:, :3] = P[3:, :3]@Fx.T # P[3:, :3]@Fx.T# TODO map-robot covariance: transpose of the above
+        P[3:, :3] =P[:3, 3:].T # P[3:, :3]@Fx.T # P[3:, :3]@Fx.T# TODO map-robot covariance: transpose of the above
 
         assert np.allclose(P, P.T), "EKFSLAM.predict: not symmetric P"
         assert np.all(
@@ -182,7 +182,7 @@ class EKFSLAM:
         # None as index ads an axis with size 1 at that position.
         # Numpy broadcasts size 1 dimensions to any size when needed
         delta_m = (m - ro.reshape(2,1))-(Rot.T@self.sensor_offset).reshape(2,1) # TODO, relative position of landmark to sensor on robot in world frame
-        print(" in def h, shape of delta_m:", delta_m.shape)
+        #print(" in def h, shape of delta_m:", delta_m.shape)
 
         # cartesian measurement in world:
         #zc = (m-ro.reshape(2,1))-(Rot.T@self.sensor_offset).reshape(2,1)
@@ -230,7 +230,7 @@ class EKFSLAM:
         Rot = rotmat2d(x[2])
 
         delta_m = (m-eta[0:2, None])# TODO, relative position of landmark to robot in world frame. m - rho that appears in (11.15) and (11.16)
-        print(" in def H, shape of delta_m:", delta_m.shape)
+        #print(" in def H, shape of delta_m:", delta_m.shape)
         zc = delta_m - (Rot@self.sensor_offset).reshape(2,1)  # TODO, (2, #measurements), each measured position in cartesian coordinates like
         # [x coordinates;
         #  y coordinates]
@@ -262,12 +262,12 @@ class EKFSLAM:
             # TODO: Set H or Hx and Hm here:
             #measurement jacobians
             jac_z_cb[:,2] = -Rpihalf @ delta_m[:, i]
-            Hx[ind,:] = (1/la.norm(zc[:,i]))*zc[:,i].T@jac_z_cb
+            #Hx[ind,:] = (1/la.norm(zc[:,i]))*zc[:,i].T@jac_z_cb
             Hx[ind,:] = (1/zpred_r[i])*zc[:,i].T@jac_z_cb
 
-            Hx[ind + 1,:] =(zc[:,i].T@Rpihalf.T)/(la.norm(zc[:,i])**2)@jac_z_cb
+            #Hx[ind + 1,:] =(zc[:,i].T@Rpihalf.T)/(la.norm(zc[:,i])**2)@jac_z_cb
             Hx[ind + 1,:] =((zc[:,i].T@Rpihalf.T)/(zpred_r[i])**2)@jac_z_cb
-            Hm[inds,inds] = (Hx[inds,0:2])
+            Hm[inds,inds] = -(Hx[inds,0:2])
         #H = np.hstack((Hx, Hm))
 
 
@@ -311,7 +311,9 @@ class EKFSLAM:
             ind = 2 * j
             inds = slice(ind, ind + 2)
             zj = z[inds]
-            zj_car = np.array([zj[0]*np.cos(zj[1]+eta[2]), zj[0]*np.sin(zj[1]+eta[2])])
+            cos_zj = np.cos(zj[1]+eta[2])
+            sin_zj = np.sin(zj[1]+eta[2])
+            zj_car = np.array([zj[0]*cos_zj, zj[0]*sin_zj])
 
             rot = rotmat2d(zj[1] + eta[2]) # TODO, rotmat in Gz
             lmnew[inds] = zj_car+sensor_offset_world + eta[0:2] # TODO, calculate position of new landmark in world frame
@@ -319,8 +321,8 @@ class EKFSLAM:
 
             #angle_matrix = np.array([[-np.sin(zj[1]+eta[2])],
             #                        [np.cos(zj[1]+eta[2])]])
-            angle_matrix = np.array([-np.sin(zj[1]+eta[2]),
-                                    np.cos(zj[1]+eta[2])]).T
+            angle_matrix = np.array([-sin_zj,
+                                    cos_zj]).T
             Gx[inds, :2] = I2 # TODO
             Gx[inds, 2] = zj[0]*angle_matrix+ sensor_offset_world_der # TODO
             Gz =rot@np.diag([1,zj[0]]) # TODO
@@ -331,7 +333,7 @@ class EKFSLAM:
         etaadded = np.concatenate((eta,lmnew)) # TODO, append new landmarks to state vector
         Padded = la.block_diag(P, Gx@P[:3, :3]@Gx.T + Rall)# TODO, block diagonal of P_new, see problem text in 1g) in graded assignment 3
         Padded[n:, :n] = Gx@P[:3,:]# TODO, top right corner of P_new
-        Padded[:n, n:] = P[:,:3]@Gx.T # TODO, transpose of above. Should yield the same as calcualion, but this enforces symmetry and should be cheaper
+        Padded[:n, n:] = Padded[n:, :n].T # P[:,:3]@Gx.T # TODO, transpose of above. Should yield the same as calcualion, but this enforces symmetry and should be cheaper
 
         assert (
             etaadded.shape * 2 == Padded.shape
@@ -442,7 +444,7 @@ class EKFSLAM:
 
             # Perform data association
             za, zpred, Ha, Sa, a = self.associate(z, zpred, H, S)
-            print('a should med -1:', a)
+            #print('a should med -1:', a)
 
 
             # No association could be made, so skip update

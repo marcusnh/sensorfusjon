@@ -94,38 +94,40 @@ poseGT = simSLAM_ws["poseGT"].T
 
 K = len(z)
 print(K)
-M = len(landmarks)/10
+M = len(landmarks)
 print(M)
 
 # %% Initilize
-Q = np.diag([0.5e-1,0.5e-1,0.12e-1])**2 # TODO
-R =  np.diag([4e-2, 4e-2])**2 # TODO
+Q = np.diag([0.91e-1,0.91e-1,2.1e-2])**2 # TODO
+R =  np.diag([4e-2, 2e-2])**2 # TODO
 
 doAsso = True
 
 JCBBalphas = np.array(
     # TODO,
-    [1e-6, 4e-5]
+    [1e-10, 1e-5]
 )  # first is for joint compatibility, second is individual
 # these can have a large effect on runtime either through the number of landmarks created
 # or by the size of the association search space.
+# %% Run simulation
+N = round(K/1)
 
 slam = EKFSLAM(Q, R, do_asso=doAsso, alphas=JCBBalphas)
 
 # allocate
-eta_pred: List[Optional[np.ndarray]] = [None] * K
-P_pred: List[Optional[np.ndarray]] = [None] * K
-eta_hat: List[Optional[np.ndarray]] = [None] * K
-P_hat: List[Optional[np.ndarray]] = [None] * K
-a: List[Optional[np.ndarray]] = [None] * K
-NIS = np.zeros(K)
-NISnorm = np.zeros(K)
-CI = np.zeros((K, 2))
-CInorm = np.zeros((K, 2))
-NEESes = np.zeros((K, 3))
+eta_pred: List[Optional[np.ndarray]] = [None] * N
+P_pred: List[Optional[np.ndarray]] = [None] * N
+eta_hat: List[Optional[np.ndarray]] = [None] * N
+P_hat: List[Optional[np.ndarray]] = [None] * N
+a: List[Optional[np.ndarray]] = [None] * N
+NIS = np.zeros(N)
+NISnorm = np.zeros(N)
+CI = np.zeros((N, 2))
+CInorm = np.zeros((N, 2))
+NEESes = np.zeros((N, 3))
 
 # For consistency testing
-alpha = 0.05
+alpha = 1-0.05
 
 # init
 eta_pred[0] = poseGT[0]  # we start at the correct position for reference
@@ -134,13 +136,12 @@ P_pred[0] = np.zeros((3, 3))  # we also say that we are 100% sure about that
 # %% Set up plotting
 # plotting
 
-doAssoPlot = True
-playMovie = True
+doAssoPlot = False
+playMovie = False
 if doAssoPlot:
     figAsso, axAsso = plt.subplots(num=1, clear=True)
 
-# %% Run simulation
-N = round(K/50)
+
 
 print("starting sim (" + str(N) + " iterations)")
 pos_hat: List[Optional[np.ndarray]] = [None] * K
@@ -152,7 +153,7 @@ for k, z_k in tqdm(enumerate(z[:N])):
 
 
 
-    if k < K - 1:
+    if k < N - 1:
         eta_pred[k + 1], P_pred[k + 1] = slam.predict(eta_hat[k],P_hat[k], odometry[k, :]) # TODO predict
 
     assert (
@@ -171,45 +172,6 @@ for k, z_k in tqdm(enumerate(z[:N])):
         CInorm[k].fill(1)
 
     NEESes[k] = slam.NEESes(eta_hat[k][:3], P_hat[k][:3,:3], poseGT[k,:]) # TODO, use provided function slam.NEESes
-    '''
-    if doAssoPlot and k > 0:
-        axAsso.clear()
-        axAsso.grid()
-        zpred = slam.h(eta_pred[k]).reshape(-1, 2)
-        axAsso.scatter(z_k[:, 0], z_k[:, 1], label="z")
-        axAsso.scatter(zpred[:, 0], zpred[:, 1], label="zpred")
-        xcoords = np.block([[z_k[a[k] > -1, 0]], [zpred[a[k][a[k] > -1], 0]]]).T
-        ycoords = np.block([[z_k[a[k] > -1, 1]], [zpred[a[k][a[k] > -1], 1]]]).T
-        for x, y in zip(xcoords, ycoords):
-            axAsso.plot(x, y, lw=3, c="r")
-        axAsso.legend()
-        axAsso.set_title(f"k = {k}, {np.count_nonzero(a[k] > -1)} associations")
-        plt.draw()
-        plt.pause(0.001)
-    #print(eta_hat[k][:3])
-    #print(pos_hat[k])
-    pos_hat[k] = eta_hat[k][:3]
-    #print(pos_hat[:k])
-    fig2, ax2 = plt.subplots(num=2, clear=True)
-    # landmarks
-    landmark = eta_hat[k][3:].reshape(-1, 2)
-    lmk_est_final = landmark
-    ax2.scatter(*landmark.T, c="r", marker="^")
-    ax2.scatter(*lmk_est_final.T, c="b", marker=".")
-    # Draw covariance ellipsis of measurements
-    for l, lmk_l in enumerate(lmk_est_final):
-        idxs = slice(3 + 2 * l, 3 + 2 * l + 2)
-        rI = P_hat[k][idxs, idxs]
-        el = ellipse(lmk_l, rI, 5, 200)
-        ax2.plot(*el.T, "b")
-
-    ax2.plot(*poseGT[:k].T[:2], c="r", label="gt")
-    ax2.plot(pos_hat[:k][:2], c="g", label="est")
-    ax2.set(title="results")
-    ax2.axis("equal")
-    ax2.grid()
-    '''
-
 
 
 

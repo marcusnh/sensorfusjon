@@ -1,11 +1,2 @@
-1d)  predict: skjønner ikke helt hva som skjer med P matrisen
-
-h : riktig?
-
-H: riktig indeks på Hm?
-
-add_landmarks: lmnew gjøre om til kartesiske?
-
-1g) oppsite with P_x,:?
-
-1f) hvorfor settes NIS =0 og 1. hvorfor må vi tenke på dette?
+Why dont we use the laplace approximation or alternative The Gauss-Newton method?
+  - is this because it's an iterated EKF and we are actually using it?
