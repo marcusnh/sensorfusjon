@@ -105,7 +105,7 @@ doAsso = True
 
 JCBBalphas = np.array(
     # TODO,
-    [1e-10, 1e-5]
+    [1e-3, 1e-3]
 )  # first is for joint compatibility, second is individual
 # these can have a large effect on runtime either through the number of landmarks created
 # or by the size of the association search space.

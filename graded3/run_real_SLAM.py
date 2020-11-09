@@ -106,14 +106,15 @@ b = 0.5  # laser distance to the left of center
 
 car = Car(L, H, a, b)
 
-sigmas = # TODO
+sigmas = np.array([5.1e-1, 5.1e-1, 5e-2])  # TODO
 CorrCoeff = np.array([[1, 0, 0], [0, 1, 0.9], [0, 0.9, 1]])
 Q = np.diag(sigmas) @ CorrCoeff @ np.diag(sigmas)
 
-R = # TODO
+R = np.diag([5e-2, 5e-3])**2  # TODO
 
 JCBBalphas = np.array(
     # TODO
+    [1e-3, 1e-3]
 )
 sensorOffset = np.array([car.a + car.L, car.b])
 doAsso = True
@@ -140,7 +141,7 @@ mk = mk_first
 t = timeOdo[0]
 
 # %%  run
-N = 1000#K
+N = round(K/4)  # K
 
 doPlot = False
 
@@ -176,10 +177,10 @@ for k in tqdm(range(N)):
 
         t = timeLsr[mk]  # ? reset time to this laser time for next post predict
         odo = odometry(speed[k + 1], steering[k + 1], dt, car)
-        eta, P = # TODO predict
+        eta, P = slam.predict(eta, P, odo)  # TODO predict
 
         z = detectTrees(LASER[mk])
-        eta, P, NIS[mk], a[mk] = # TODO update
+        eta, P, NIS[mk], a[mk] = slam.update(eta, P, z)  # TODO update
 
         num_asso = np.count_nonzero(a[mk] > -1)
 
@@ -254,11 +255,12 @@ if do_raw_prediction:
 
 # %%
 fig6, ax6 = plt.subplots(num=6, clear=True)
-ax6.scatter(*eta[3:].reshape(-1, 2).T, color="r", marker="x")
-ax6.plot(*xupd[mk_first:mk, :2].T)
+ax6.scatter(*eta[3:].reshape(-1, 2).T, color="r", marker="x", label='Landmarks')
+ax6.plot(*xupd[mk_first:mk, :2].T, label='Estimated trajectory')
 ax6.set(
     title=f"Steps {k}, laser scans {mk-1}, landmarks {len(eta[3:])//2},\nmeasurements {z.shape[0]}, num new = {np.sum(a[mk] == -1)}"
 )
+ax6.legend()
 plt.show()
 
 # %%
