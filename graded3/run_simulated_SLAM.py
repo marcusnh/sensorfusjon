@@ -98,14 +98,14 @@ M = len(landmarks)
 print(M)
 
 # %% Initilize
-Q = np.diag([0.91e-1,0.91e-1,2.1e-2])**2 # TODO
-R =  np.diag([4e-2, 2e-2])**2 # TODO
+Q = np.diag([0.45e-1,0.45e-1,1.2e-2])**2 # TODO
+R =  np.diag([4.5e-2, 2.5e-2])**2 # TODO
 
 doAsso = True
 
 JCBBalphas = np.array(
     # TODO,
-    [1e-10, 1e-5]
+    [1e-5, 1e-3]
 )  # first is for joint compatibility, second is individual
 # these can have a large effect on runtime either through the number of landmarks created
 # or by the size of the association search space.
@@ -196,19 +196,20 @@ maxs += offsets
 fig2, ax2 = plt.subplots(num=2, clear=True)
 # landmarks
 ax2.scatter(*landmarks.T, c="r", marker="^")
-ax2.scatter(*lmk_est_final.T, c="b", marker=".")
+ax2.scatter(*lmk_est_final.T, c="y", marker=".")
 # Draw covariance ellipsis of measurements
 for l, lmk_l in enumerate(lmk_est_final):
     idxs = slice(3 + 2 * l, 3 + 2 * l + 2)
     rI = P_hat[N - 1][idxs, idxs]
     el = ellipse(lmk_l, rI, 5, 200)
-    ax2.plot(*el.T, "b")
+    ax2.plot(*el.T, "y")
 
-ax2.plot(*poseGT.T[:2], c="r", label="gt")
-ax2.plot(*pose_est.T[:2], c="g", label="est")
-ax2.plot(*ellipse(pose_est[-1, :2], P_hat[N - 1][:2, :2], 5, 200).T, c="g")
-ax2.set(title="results", xlim=(mins[0], maxs[0]), ylim=(mins[1], maxs[1]))
+ax2.plot(*poseGT.T[:2], c="g", label="Ground truth", linestyle='--')
+ax2.plot(*pose_est.T[:2], c="b", label="Estimated position")
+ax2.plot(*ellipse(pose_est[-1, :2], P_hat[N - 1][:2, :2], 5, 200).T, c="b")
+ax2.set(title="Trajectory", xlim=(mins[0], maxs[0]), ylim=(mins[1], maxs[1]))
 ax2.axis("equal")
+ax2.legend()
 ax2.grid()
 
 # %% Consistency
@@ -217,8 +218,8 @@ ax2.grid()
 insideCI = (CInorm[:N,0] <= NISnorm[:N]) * (NISnorm[:N] <= CInorm[:N,1])
 
 fig3, ax3 = plt.subplots(num=3, clear=True)
-ax3.plot(CInorm[:N,0], '--')
-ax3.plot(CInorm[:N,1], '--')
+ax3.plot(CInorm[:N,0], '--', color='r')
+ax3.plot(CInorm[:N,1], '--', color='r')
 ax3.plot(NISnorm[:N], lw=0.5)
 
 ax3.set_title(f'NIS, {insideCI.mean()*100}% inside CI')
@@ -231,8 +232,8 @@ dfs = [3, 2, 1]
 
 for ax, tag, NEES, df in zip(ax4, tags, NEESes.T, dfs):
     CI_NEES = chi2.interval(alpha, df)
-    ax.plot(np.full(N, CI_NEES[0]), '--')
-    ax.plot(np.full(N, CI_NEES[1]), '--')
+    ax.plot(np.full(N, CI_NEES[0]), '--', color='r')
+    ax.plot(np.full(N, CI_NEES[1]), '--', color='r')
     ax.plot(NEES[:N], lw=0.5)
     insideCI = (CI_NEES[0] <= NEES) * (NEES <= CI_NEES[1])
     ax.set_title(f'NEES {tag}: {insideCI.mean()*100}% inside CI')
