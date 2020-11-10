@@ -106,15 +106,15 @@ b = 0.5  # laser distance to the left of center
 
 car = Car(L, H, a, b)
 
-sigmas = np.array([5.1e-1, 5.1e-1, 5e-2])  # TODO
+sigmas = np.array([0.8e-2, 0.1e-2, 1e-3])  # TODO
 CorrCoeff = np.array([[1, 0, 0], [0, 1, 0.9], [0, 0.9, 1]])
 Q = np.diag(sigmas) @ CorrCoeff @ np.diag(sigmas)
 
-R = np.diag([5e-2, 5e-3])**2  # TODO
+R = np.diag([4e-2, 2e-2])  #**2  # TODO
 
 JCBBalphas = np.array(
     # TODO
-    [1e-3, 1e-3]
+    [5e-5, 3e-8]
 )
 sensorOffset = np.array([car.a + car.L, car.b])
 doAsso = True
@@ -141,7 +141,7 @@ mk = mk_first
 t = timeOdo[0]
 
 # %%  run
-N = round(K/4)  # K
+N = 10000
 
 doPlot = False
 
@@ -162,7 +162,7 @@ if do_raw_prediction:  # TODO: further processing such as plotting
 
     for k in range(min(N, K - 1)):
         odos[k + 1] = odometry(speed[k + 1], steering[k + 1], 0.025, car)
-        odox[k + 1], _ = slam.predict(odox[k], P, odos[k + 1])
+        odox[k + 1], _ = slam.predict(odox[k], P.copy(), odos[k + 1])  # Feil i utdelt kode her
 
 for k in tqdm(range(N)):
     if mk < mK - 1 and timeLsr[mk] <= timeOdo[k + 1]:
@@ -181,6 +181,7 @@ for k in tqdm(range(N)):
 
         z = detectTrees(LASER[mk])
         eta, P, NIS[mk], a[mk] = slam.update(eta, P, z)  # TODO update
+        #print(eta[3:].shape[0]//2)
 
         num_asso = np.count_nonzero(a[mk] > -1)
 
@@ -259,6 +260,21 @@ ax6.scatter(*eta[3:].reshape(-1, 2).T, color="r", marker="x", label='Landmarks')
 ax6.plot(*xupd[mk_first:mk, :2].T, label='Estimated trajectory')
 ax6.set(
     title=f"Steps {k}, laser scans {mk-1}, landmarks {len(eta[3:])//2},\nmeasurements {z.shape[0]}, num new = {np.sum(a[mk] == -1)}"
+)
+x = Lo_m[timeGps < timeOdo[N - 1]]
+y = La_m[timeGps < timeOdo[N - 1]]
+x_rot = x
+y_rot = y
+theta = 0.1
+for i in range(x.shape[0]):
+    x_rot[i] = x[i]*np.cos(theta) - y[i]*np.sin(theta)
+    y_rot[i] = x[i]*np.sin(theta) + y[i]*np.cos(theta)
+ax6.scatter(
+        x_rot-3,
+        y_rot+10,
+        c="r",
+        marker=".",
+        label="GPS",
 )
 ax6.legend()
 plt.show()
