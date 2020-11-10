@@ -99,13 +99,13 @@ print(M)
 
 # %% Initilize
 Q = np.diag([0.45e-1,0.45e-1,1.2e-2])**2 # TODO
-R =  np.diag([4.5e-2, 2.5e-2])**2 # TODO
+R =  np.diag([3e-2, 3e-2])**2 # TODO
 
 doAsso = True
 
 JCBBalphas = np.array(
     # TODO,
-    [1e-5, 1e-3]
+    [1e-5, 1e-6]
 )  # first is for joint compatibility, second is individual
 # these can have a large effect on runtime either through the number of landmarks created
 # or by the size of the association search space.
@@ -216,13 +216,17 @@ ax2.grid()
 
 # NIS
 insideCI = (CInorm[:N,0] <= NISnorm[:N]) * (NISnorm[:N] <= CInorm[:N,1])
+ANIS = np.mean(NISnorm[:N])
+CI_NIS =np.array(chi2.interval(alpha, 3*N)) / N
+print(f"CI ANIS all: {CI_NIS}")
+print(f"ANIS all: {ANIS}")
 
 fig3, ax3 = plt.subplots(num=3, clear=True)
 ax3.plot(CInorm[:N,0], '--', color='r')
 ax3.plot(CInorm[:N,1], '--', color='r')
 ax3.plot(NISnorm[:N], lw=0.5)
 
-ax3.set_title(f'NIS, {insideCI.mean()*100}% inside CI')
+ax3.set_title(f'NIS, {round(insideCI.mean()*100,2)}% inside CI')
 
 # NEES
 
@@ -236,7 +240,7 @@ for ax, tag, NEES, df in zip(ax4, tags, NEESes.T, dfs):
     ax.plot(np.full(N, CI_NEES[1]), '--', color='r')
     ax.plot(NEES[:N], lw=0.5)
     insideCI = (CI_NEES[0] <= NEES) * (NEES <= CI_NEES[1])
-    ax.set_title(f'NEES {tag}: {insideCI.mean()*100}% inside CI')
+    ax.set_title(f'NEES {tag}: {round(insideCI.mean()*100,2)}% inside CI')
 
     CI_ANEES = np.array(chi2.interval(alpha, df*N)) / N
     print(f"CI ANEES {tag}: {CI_ANEES}")
@@ -258,7 +262,7 @@ errs = np.vstack((pos_err, heading_err))
 
 for ax, err, tag, ylabel, scaling in zip(ax5, errs, tags[1:], ylabels, scalings):
     ax.plot(err*scaling)
-    ax.set_title(f"{tag}: RMSE {np.sqrt((err**2).mean())*scaling} {ylabel}")
+    ax.set_title(f"{tag}: RMSE {round(np.sqrt((err**2).mean())*scaling,2)} {ylabel}")
     ax.set_ylabel(f"[{ylabel}]")
     ax.grid()
 
