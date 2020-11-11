@@ -24,3 +24,4 @@ Notater:
 Litt om tuning:
 * Minket verdiene i sigmas en del for at trajectory skulle bli mer smud
 * Se litt mer på hvordan alphaene påvirker konfidensintervall og sånt
+* Å sette ned usikkerheten i R og Q gir flere landmarks, finn ut hvorfor
