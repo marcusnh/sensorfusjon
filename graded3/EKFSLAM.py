@@ -185,16 +185,9 @@ class EKFSLAM:
         #print(" in def h, shape of delta_m:", delta_m.shape)
 
         # cartesian measurement in world:
-        #zc = (m-ro.reshape(2,1))-(Rot.T@self.sensor_offset).reshape(2,1)
         zpredcart = Rot @ delta_m
-        #zpredcart =(delta_m-(Rot@self.sensor_offset).reshape(2,1)) # TODO, predicted measurements in cartesian coordinates, beware sensor offset for VP
-        # tips: bruke transpose av Rot og så Rot igjen? why?
-        #zpred_r = la.norm(zpredcart, axis=0) #np.sqrt(sum(zpredcart**2))# TODO, ranges
-        zpred_r = la.norm(delta_m, axis=0)
-        #zpred_theta =np.arctan2((Rot@zpredcart)[1,:],(zpredcart)[0,:]) # TODO, bearings
+        zpred_r = la.norm(delta_m, axis=0)# TODO, ranges
         zpred_theta =np.arctan2((zpredcart)[1,:],(zpredcart)[0,:]) # TODO, bearings
-
-        #zpred_theta =np.arctan2(zc[1,:],zc[0,:])
         zpred =np.vstack((zpred_r,zpred_theta)) # TODO, the two arrays above stacked on top of each other vertically like
         # [ranges;
         #  bearings]
@@ -220,55 +213,6 @@ class EKFSLAM:
         np.ndarray, shape=(2 * #landmarks, 3 + 2 * #landmarks)
             the jacobian of h wrt. eta.
         """
-        # # extract states and map
-        # x = eta[0:3]
-        # ## reshape map (2, #landmarks), m[j] is the jth landmark
-        # m = eta[3:].reshape((-1, 2)).T
-        #
-        # numM = m.shape[1]
-        #
-        # Rot = rotmat2d(x[2])
-        #
-        # delta_m = (m-eta[0:2, None])# TODO, relative position of landmark to robot in world frame. m - rho that appears in (11.15) and (11.16)
-        # #print(" in def H, shape of delta_m:", delta_m.shape)
-        # zc = delta_m - (Rot@self.sensor_offset).reshape(2,1)  # TODO, (2, #measurements), each measured position in cartesian coordinates like
-        # # [x coordinates;
-        # #  y coordinates]
-        #
-        # zpred_r = la.norm(zc, axis=0)# TODO (2, #measurements), predicted measurements, like
-        # zpred_theta =np.arctan2((zc)[1,:],(zc)[0,:])
-        # # [ranges;
-        # #  bearings]
-        # # TODO, ranges
-        #
-        # Rpihalf = rotmat2d(np.pi / 2)
-
-        # In what follows you can be clever and avoid making this for all the landmarks you _know_
-        # you will not detect (the maximum range should be available from the data).
-        # But keep it simple to begin with.
-
-        # Allocate H and set submatrices as memory views into H
-        # You may or may not want to do this like this
-        #H = np.zeros((2 * numM, 3 + 2 * numM)) # TODO, see eq (11.15), (11.16), (11.17)
-        # Hx = H[:, :3]  # slice view, setting elements of Hx will set H as well
-        # Hm = H[:, 3:]  # slice view, setting elements of Hm will set H as well
-        #
-        # # proposed way is to go through landmarks one by one
-        # jac_z_cb = -np.eye(2, 3)  # preallocate and update this for some speed gain if looping
-        # for i in range(numM):  # But this whole loop can be vectorized
-        #     ind = 2 * i # starting postion of the ith landmark into H
-        #     inds = slice(ind, ind + 2)  # the inds slice for the ith landmark into H
-        #
-        #     # TODO: Set H or Hx and Hm here:
-        #     #measurement jacobians
-        #     jac_z_cb[:,2] = -Rpihalf @ delta_m[:, i]
-        #     #Hx[ind,:] = (1/la.norm(zc[:,i]))*zc[:,i].T@jac_z_cb
-        #     Hx[ind,:] = (1/zpred_r[i])*zc[:,i].T@jac_z_cb
-        #
-        #     #Hx[ind + 1,:] =(zc[:,i].T@Rpihalf.T)/(la.norm(zc[:,i])**2)@jac_z_cb
-        #     Hx[ind + 1,:] =((zc[:,i].T@Rpihalf.T)/(zpred_r[i])**2)@jac_z_cb
-        #     Hm[inds,inds] = -(Hx[inds,0:2])
-        # #H = np.hstack((Hx, Hm))
 
         # extract states and map
         x = eta[0:3]
@@ -349,10 +293,6 @@ class EKFSLAM:
 
             rot = rotmat2d(zj[1] + eta[2]) # TODO, rotmat in Gz
             lmnew[inds] = zj_car+sensor_offset_world + eta[0:2] # TODO, calculate position of new landmark in world frame
-            #lmnew[inds] = rot[:,0]*zj[0]+sensor_offset_world + eta[0:2] # TODO, calculate position of new landmark in world frame
-
-            #angle_matrix = np.array([[-np.sin(zj[1]+eta[2])],
-            #                        [np.cos(zj[1]+eta[2])]])
             angle_matrix = np.array([-sin_zj,
                                     cos_zj]).T
             Gx[inds, :2] = I2 # TODO
@@ -468,7 +408,6 @@ class EKFSLAM:
             #print("S")
             idxs = np.arange(numLmk *2).reshape(numLmk, 2)
             S[idxs[..., None], idxs[:,None]] +=self.R[None]
-            # fast?
             assert (
                 S.shape == zpred.shape * 2
             ), "EKFSLAM.update: wrong shape on either S or zpred"
@@ -491,8 +430,6 @@ class EKFSLAM:
                 v[1::2] = utils.wrapToPi(v[1::2])
                 # Kalman mean update
                 S_cho_factors = la.cho_factor(Sa)
-                #print('\n', len(S_cho_factors))
-                #print('\n', S_cho_factors) # Optional, used in places for S^-1, see scipy.linalg.cho_factor and scipy.linalg.cho_solve
                 W = la.cho_solve(S_cho_factors, Ha@P).T # TODO, Kalman gain, can use S_cho_factors
                 # W = P @ H.T @ la.inv(Sa)
                 etaupd = eta + W @ v # TODO, Kalman update
